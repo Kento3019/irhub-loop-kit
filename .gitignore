@@ -9,3 +9,6 @@ loop/verify/
 loop/runs.jsonl
 .claude/settings.local.json
 __pycache__/
+
+# Windows からコピーしたときに付くファイル
+*:Zone.Identifier
