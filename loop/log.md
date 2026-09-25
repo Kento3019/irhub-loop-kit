@@ -15,3 +15,9 @@
 - 2026-09-26T01:34:54+09:00 DONE D-03 attempts=2
 - 2026-09-26T01:35:46+09:00 START D-04 attempt=1
 - 2026-09-26T01:42:28+09:00 DONE D-04 attempts=1
+- 2026-09-26T01:45:25+09:00 REOPEN I-04: 人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。
+- 2026-09-26T01:45:25+09:00 REOPEN I-03: 人の判断（D-04 審査の推奨より）：D-04 設計書の api.h は private の replaceFrom(..., ScheduleJsonKind) で ScheduleJsonKind を使うのに #include "schedule_json.h" が抜けている。実装では api.h にこの include を入れる。
+- 2026-09-26T01:47:31+09:00 START D-05 attempt=1
+- 2026-09-26T01:56:03+09:00 RETRY D-05 attempts=1 reason=review REJECT
+- 2026-09-26T01:56:03+09:00 START D-05 attempt=2
+- 2026-09-26T01:58:08+09:00 DONE D-05 attempts=2

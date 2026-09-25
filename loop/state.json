@@ -160,7 +160,7 @@
       "id": "D-05",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-04"
       ],
@@ -187,7 +187,11 @@
           "path": "docs/design/05-ui.md"
         }
       ],
-      "brief": "画面構成、各操作で呼ぶAPI、状態の再取得タイミング（F5 30秒）、NTP未取得の警告表示、エラー表示、エクスポート（ファイル保存）とインポート（ファイル選択）の流れ。web/index.html を唯一のソースにし、ビルド時に C++ ヘッダへ埋め込む方式を決める。SwitchBot のロゴ・アイコン・名称・配色は使わない。"
+      "brief": "画面構成、各操作で呼ぶAPI、状態の再取得タイミング（F5 30秒）、NTP未取得の警告表示、エラー表示、エクスポート（ファイル保存）とインポート（ファイル選択）の流れ。web/index.html を唯一のソースにし、ビルド時に C++ ヘッダへ埋め込む方式を決める。SwitchBot のロゴ・アイコン・名称・配色は使わない。",
+      "attempts": 2,
+      "base_commit": "391573f017332a52eba2523ce0168123913517c3",
+      "started_at": "2026-09-26T01:56:03+09:00",
+      "done_at": "2026-09-26T01:58:08+09:00"
     },
     {
       "id": "D-06",
@@ -519,7 +523,9 @@
           "env": "esp32"
         }
       ],
-      "brief": "test/test_api を通す。既存テストも全部通ったままにする。"
+      "brief": "test/test_api を通す。既存テストも全部通ったままにする。",
+      "attempts": 0,
+      "human_feedback": "人の判断（D-04 審査の推奨より）：D-04 設計書の api.h は private の replaceFrom(..., ScheduleJsonKind) で ScheduleJsonKind を使うのに #include \"schedule_json.h\" が抜けている。実装では api.h にこの include を入れる。"
     },
     {
       "id": "I-04",
@@ -567,7 +573,9 @@
           "env": "esp32"
         }
       ],
-      "brief": "web/index.html を1ファイルで作る。tools/embed_html.py は PlatformIO の extra_scripts（pre:）で web/index.html を src/generated/index_html.h に埋め込む。tools/mock_server.py は Python 標準ライブラリだけで API を真似て web/index.html を返す（PCのブラウザで画面を確かめるため）。"
+      "brief": "web/index.html を1ファイルで作る。tools/embed_html.py は PlatformIO の extra_scripts（pre:）で web/index.html を src/generated/index_html.h に埋め込む。tools/mock_server.py は Python 標準ライブラリだけで API を真似て web/index.html を返す（PCのブラウザで画面を確かめるため）。",
+      "attempts": 0,
+      "human_feedback": "人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。"
     },
     {
       "id": "I-05",
