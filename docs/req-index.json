@@ -1,0 +1,39 @@
+{
+  "_note": "requirements.md の各要件に付けたID。status は requirements.md の 決定/仮/未決。code=false は実装を伴わない要件。allowed_in は 未決 の要件IDを書いてよいコードファイル（それ以外に出てきたら verify が落とす）。変更は scripts/state.py decide か人の手で行う。",
+  "source": "docs/requirements.md v0.3 (2026-09-25)",
+  "reqs": [
+    {"id": "F1", "title": "エアコン操作（運転・モード・温度・風量・風向、状態一式を毎回送る）", "section": "2 F1", "status": "決定", "code": true},
+    {"id": "F1-VALUES", "title": "温度範囲・風量段階・風向の選択肢", "section": "2 F1 / 9 #1", "status": "未決", "code": true, "decision": "D1",
+     "allowed_in": ["lib/core/src/ac_capabilities.h", "test/**", "web/**"],
+     "rule": "値は ac_capabilities.h の1か所に仮値で置き、各値に PENDING(F1-VALUES) を付ける。画面は /api/status などから選択肢を受け取って描き、値を直書きしない"},
+    {"id": "F1-TIMER", "title": "本体タイマー 入／切", "section": "2 F1 / 9 #1", "status": "未決", "code": true, "decision": "D1", "allowed_in": [],
+     "rule": "作らない。設計書で扱いだけ書く"},
+    {"id": "PROTO", "title": "エアコンのプロトコル（仮：HITACHI_AC424）", "section": "1 / 9 #1", "status": "仮", "code": true, "decision": "D1"},
+    {"id": "F2", "title": "初期設定（モード別の最後の設定、再起動で初期値）", "section": "2 F2", "status": "仮", "code": true, "decision": "D2",
+     "rule": "冷房26℃自動は決定。暖房・除湿・自動は仮値。初期値は1か所に集約"},
+    {"id": "F3", "title": "照明操作（6ボタン、状態を持たない）", "section": "2 F3", "status": "決定", "code": true},
+    {"id": "F4", "title": "スケジュール（登録・編集・削除、時刻・曜日・対象と操作・有効無効、JST）", "section": "2 F4", "status": "決定", "code": true},
+    {"id": "F4-LIMIT", "title": "スケジュール上限 10件", "section": "2 F4", "status": "仮", "code": true},
+    {"id": "F4-IO", "title": "スケジュールのエクスポート／インポート（JSON）", "section": "2 F4 / 5", "status": "決定", "code": true},
+    {"id": "F5", "title": "室温・湿度の表示（DHT20、30秒更新、履歴なし）", "section": "2 F5", "status": "決定", "code": true},
+    {"id": "F6", "title": "外出先からの操作（自宅PCをTailscaleサブネットルーター、/32のみ公開）", "section": "2 F6", "status": "決定", "code": false},
+    {"id": "N-AUTH", "title": "利用者は自分のみ、LAN内は認証なし", "section": "3", "status": "決定", "code": true},
+    {"id": "N-WIFI", "title": "Wi-Fi再接続 最大3回（約30秒）、全失敗で再起動", "section": "3", "status": "決定", "code": true},
+    {"id": "N-STATE", "title": "状態はメモリのみ、再起動で初期値", "section": "3", "status": "決定", "code": true},
+    {"id": "N-BOOT", "title": "起動・再起動時に赤外線を送らない", "section": "3", "status": "仮", "code": true},
+    {"id": "N-TIME", "title": "NTP・JST、取得前はスケジュールを実行せず画面に警告", "section": "3", "status": "仮", "code": true},
+    {"id": "N-RESP", "title": "ボタン押下から送信まで1秒以内", "section": "3", "status": "仮", "code": true},
+    {"id": "N-FLASH", "title": "書き込みはUSB（OTAなし）", "section": "3", "status": "決定", "code": false},
+    {"id": "N-SECRET", "title": "SSID/パスワードは include/secrets.h（Git管理外）", "section": "3", "status": "仮", "code": true},
+    {"id": "N-IP", "title": "IP固定（DHCP予約、無理ならESP32側で範囲外に固定）", "section": "3", "status": "仮", "code": true},
+    {"id": "N-PLACE", "title": "設置場所", "section": "3", "status": "決定", "code": false},
+    {"id": "UI", "title": "スマホ縦1ページ、機器カード、HTML+CSS+JS 1ファイル、ビルドツールなし、ファームに埋め込み", "section": "4", "status": "仮", "code": true},
+    {"id": "API", "title": "HTTP API（/api/status, /api/ac, /api/light, /api/schedules*）、エラーは400+{error}", "section": "5", "status": "仮", "code": true},
+    {"id": "HW-PINS", "title": "ピン割り当て（IO4送信、IO14受信、IO21/22 I2C）", "section": "6", "status": "決定", "code": true},
+    {"id": "C-TECH", "title": "PlatformIO、espressif32（core 2.x）、IRremoteESP8266（IRac優先）、DHT20 0x38、WebServer", "section": "7", "status": "決定", "code": true}
+  ],
+  "decisions": [
+    {"id": "D1", "title": "プロトコル・温度範囲・風量/風向の選択肢・本体タイマー対応", "when": "フェーズ1（H-1）", "status": "open", "affects": ["F1-VALUES", "F1-TIMER", "PROTO"], "result": null},
+    {"id": "D2", "title": "暖房・除湿・自動の初期値", "when": "フェーズ2（H-2）", "status": "open", "affects": ["F2"], "result": null}
+  ]
+}

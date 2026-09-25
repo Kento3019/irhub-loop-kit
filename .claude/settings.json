@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/state.py *)",
+      "Bash(python scripts/verify.py *)",
+      "Bash(python tools/*)",
+      "Bash(pio run -e *)",
+      "Bash(pio test *)",
+      "Bash(pio pkg list*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git ls-files*)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(pio run -t upload*)",
+      "Bash(pio run --target upload*)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.py"]
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": ["${CLAUDE_PROJECT_DIR}/scripts/state.py", "summary"]
+          }
+        ]
+      }
+    ]
+  }
+}
