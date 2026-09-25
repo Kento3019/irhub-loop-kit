@@ -197,7 +197,7 @@
       "id": "D-06",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01"
       ],
@@ -225,7 +225,11 @@
           "path": "docs/design/06-runtime.md"
         }
       ],
-      "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。"
+      "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。",
+      "attempts": 2,
+      "base_commit": "9b54397df3a5a620155403ad77e3e46ac7ade382",
+      "started_at": "2026-09-26T02:06:28+09:00",
+      "done_at": "2026-09-26T02:09:04+09:00"
     },
     {
       "id": "D-07",
