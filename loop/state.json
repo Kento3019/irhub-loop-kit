@@ -341,7 +341,7 @@
       "id": "T-02",
       "type": "test-code",
       "agent": "test-designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-DESIGN"
       ],
@@ -369,10 +369,10 @@
         }
       ],
       "brief": "docs/test/test-plan.md の該当 TC-N を Unity で書く。実装はまだ無い。設計書 02 のインターフェースに従って書き、実装を推測して合わせにいかない。各テストの直前に // REQ: と // TC: を書く。",
-      "attempts": 0,
-      "base_commit": "b59ac40b20a162feb39765ce1185edae6866aa57",
-      "started_at": "2026-09-26T12:30:50+09:00",
-      "done_at": "2026-09-26T12:34:56+09:00",
+      "attempts": 1,
+      "base_commit": "b0aa6816cbba74a422ba92b77438e71719edbbf6",
+      "started_at": "2026-09-26T22:56:21+09:00",
+      "done_at": "2026-09-26T23:02:01+09:00",
       "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：風向は作らず、ac_capabilities.h の風向の選択肢は Off だけになる（I-06 で確定値にする）。今のテスト TC-N06 test_apply_swingv_only（test/test_ac_state/test_main.cpp）は swingV=AcSwingV::Auto が受け付けられることを直書きで確かめており、確定値にすると落ちる。TC-N06 を TC-N07 と同じ形（cap::kSwingVDefault 以外の選択肢を探し、無ければ TEST_IGNORE）に直す。ほかのテストで F1-VALUES の仮値（風向・風量・モード・温度範囲）を直書きしているものがあれば、同じく cap:: から作る形に直す。設計書 D-01・D-02 とテスト計画 T-01（作り直し後）に従う。"
     },
     {
