@@ -93,7 +93,9 @@ class ScheduleList {
   ScheduleError replaceAll(const Schedule* items, int n, int* badIndex);
 
  private:
-  uint16_t allocateId(const Schedule* items, int n);       // 3.2 の規則
+  // 3.2 の規則。引数は取らず、写し終えた items_[0..count_-1] の id と nextId_ だけを見る。
+  // 選んだ id を返し、nextId_ を進める（items_ への書き込みは呼び出し側の replaceAll が行う）。
+  uint16_t allocateId();
   Schedule items_[kScheduleMax];
   int      count_  = 0;
   uint16_t nextId_ = 1;
@@ -166,7 +168,7 @@ struct JstMinute {
 3. `id != 0` の件どうしで同じ id があれば `DuplicateId`（`*badIndex` は2件目の添字）。
 4. ここまで通ったら、`items` を `items_` に写し、`count_ = n`。
 5. 入力の `id != 0` の件の最大値を `maxId` とする（1件も無ければこの手順は飛ばす）。`maxId >= nextId_` なら `nextId_ = (maxId == kScheduleIdMax) ? 1 : maxId + 1`。
-6. `items_` の `id == 0` の件に、入力の順に `allocateId` で採番する（3.2。使用中の id は飛ばす）。
+6. `items_` の `id == 0` の件に、入力の順に `items_[i].id = allocateId()` で採番する（3.2。使用中の id は飛ばす）。`allocateId()` は引数を取らず `items_[0..count_-1]` を見るので、先に採番した件の id も「使用中」になる。
 7. `None` を返す。
 
 1〜3 のどれかで返ったときは、`items_`・`count_`・`nextId_` を変えない。
@@ -176,7 +178,7 @@ struct JstMinute {
 - 入力に id がある件は、その id をそのまま使う（エクスポート→インポートで id が変わらない。画面は編集した件の id を付けて送り返す）。
 - 入力に id が無い件（画面で新しく追加した件）は採番する。
 - 採番の前に（3.1 の手順5）、入力 id の最大値が `nextId_` 以上なら `nextId_` を「最大値 + 1」にする。最大値が `kScheduleIdMax`（9999）なら 1 にする。インポートした id の後ろから採番し、消した件の id をすぐに使い回さないため。
-- 採番（3.1 の手順6、`allocateId`）：`nextId_` から始めて、今の `items_` で使われていない最初の id を選ぶ（入力にあった id と、この回ですでに採番した id を飛ばす）。`kScheduleIdMax` の次は 1 に戻る。件数は最大 `kScheduleMax` なので必ず見つかる。選んだ後、`nextId_` を「選んだ id + 1」にする（`kScheduleIdMax` の次は 1）。
+- 採番（3.1 の手順6、`allocateId()`）：`nextId_` から始めて、今の `items_[0..count_-1]`（手順4で写した後の一覧）で使われていない最初の id を選ぶ（入力にあった id と、この回ですでに採番した id を飛ばす）。`kScheduleIdMax` の次は 1 に戻る。件数は最大 `kScheduleMax` なので必ず見つかる。選んだ後、`nextId_` を「選んだ id + 1」にする（`kScheduleIdMax` の次は 1）。
 - `nextId_` は RAM だけ。再起動で 1 に戻る（N-STATE）。
 
 例（上から順に続けて行う行と、独立の行がある。「前の一覧」と `nextId_` がその行の前提）：
@@ -508,6 +510,7 @@ std::string exportFilename(const ClockReading& now);
 | 8 | 各件の `validateSchedule` | `schedules[<i>]: <errorMessage>` |
 | 9 | id の重複（`replaceAll`） | `schedules[<i>]: duplicate id` |
 
+- 順9 の文言は ApiRouter（D-04 7節・10.5）が組み立てる：`Hub::replaceSchedules` が返した `DuplicateId` と `badIndex` から `"schedules[" + badIndex + "]: " + errorMessage(DuplicateId)` を作る（`badIndex < 0` のときは `errorMessage(e)` だけ）。`ScheduleList`・`Hub` は文字列を作らない。
 - `PUT /api/schedules`（kind=List）も同じ検証で、3・4 を行わない（`version` があっても無視する）。
 - 上限超過（6）は一部だけ取り込むことをしない。ファイル全体を拒否し、今の一覧はそのまま。
 - 成功したら一覧は**ファイルの内容で置き換わる**（今ある件と混ぜない。要件5章「置き換える」）。応答は 6.1 の一覧の形（200）。

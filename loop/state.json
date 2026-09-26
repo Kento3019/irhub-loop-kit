@@ -89,7 +89,7 @@
       "id": "D-03",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01"
       ],
@@ -114,10 +114,10 @@
         }
       ],
       "brief": "データ構造、ID採番、実行判定（何秒ごとに見るか、同じ分に二重実行しない方法、ESP32が遅れて判定した場合、NTP未取得時）、エクスポートファイルの形と version、インポート時の検証とエラー、上限超過時の扱い。判定ロジックは時刻を引数で受け取る純関数にして native でテストできる形にする。",
-      "attempts": 0,
-      "base_commit": "413a70197cb1f26247820fbb22155d205afb5b77",
-      "started_at": "2026-09-26T01:31:06+09:00",
-      "done_at": "2026-09-26T01:34:54+09:00",
+      "attempts": 1,
+      "base_commit": "2dc67f613a9326cc8077967f7b85b6065db1bd55",
+      "started_at": "2026-09-26T12:01:52+09:00",
+      "done_at": "2026-09-26T12:03:17+09:00",
       "human_feedback": "人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry など）は反映済みで、崩さないこと。直す点以外は変えないこと。\n直す点：loop/reviews/D-03-a2.md の推奨1（allocateId の署名：引数の items を見るのか items_ を見るのかを署名と 3.2 でそろえる）、推奨2（6.3 順9 `schedules[<i>]: duplicate id` の文言を誰が組み立てるかを1行書く。D-04 の ApiRouter と合わせる）。"
     },
     {
