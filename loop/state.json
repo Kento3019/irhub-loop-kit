@@ -493,7 +493,7 @@
       "id": "T-04",
       "type": "test-code",
       "agent": "test-designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-DESIGN"
       ],
@@ -525,8 +525,11 @@
         }
       ],
       "brief": "HTTP 非依存のハンドラ関数に対し、正常系と 400 エラー系を書く。赤外線送信はフェイクで受け、『状態一式が1回送られた』『照明のボタン名が送られた』を確かめる。",
-      "attempts": 0,
-      "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。"
+      "attempts": 1,
+      "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。",
+      "base_commit": "224bbf07ac7c4854340d3bb4507b998a4e9ab3bd",
+      "started_at": "2026-09-26T23:21:37+09:00",
+      "done_at": "2026-09-26T23:30:45+09:00"
     },
     {
       "id": "I-03",
