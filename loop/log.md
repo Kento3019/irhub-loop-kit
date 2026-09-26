@@ -123,3 +123,12 @@
 - 2026-09-26T12:03:17+09:00 DONE D-03 attempts=1
 - 2026-09-26T12:03:17+09:00 START D-04 attempt=1
 - 2026-09-26T12:06:44+09:00 DONE D-04 attempts=1
+- 2026-09-26T12:06:44+09:00 REOPEN D-03: 人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断は崩さないこと。直す点以外は変えないこと。
+直す点：loop/reviews/D-04-a1.md の推奨4（D-03 への申し送り）：6節の schedule_json.h に `std::string formatJstIso(const LocalTime& t);`（exportedAt と同じ "YYYY-MM-DDTHH:MM:SS+09:00" の書式）を公開関数として足す。D-04 11節は api 側でこの関数を使う（D-04 の要件への疑問11）。schedulesToJson の exportedAt もこの関数で作ると書く。
+- 2026-09-26T12:06:44+09:00 REOPEN D-04: 人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断は崩さないこと。直す点以外は変えないこと。
+直す点：loop/reviews/D-04-a1.md の推奨1（「実機でしか確かめられないこと」の、スマホで /api/schedules/export の URL を直接開いて保存を確かめる古い手順を、D-05 の fetch＋Blob 方式（画面のエクスポートボタン）での確認に直す）、推奨2（テスト観点「sendAc が false でも 200」に「運転中にしてから」の前提を足す。TC-N164 と同じ）。D-03 に formatJstIso が公開されたら、要件への疑問11を解決済みに書き直す。
+- 2026-09-26T12:06:44+09:00 REOPEN D-05: 人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry など）は反映済みで、崩さないこと。直す点以外は変えないこと。
+直す点：loop/reviews/D-05-a1.md の推奨1（8.2：fetchRaw が 200 で #conn-error を隠した後に本文の読み取りが失敗した場合の扱いを書く）、推奨3（8.2：Content-Type を付ける／付けないの字面の食い違いをなくす。export の fetchRaw("GET", ...) も含めて）。推奨2は D-04 で、推奨4は T-01 で対応する。
+あわせて loop/reviews/D-04-a1.md の推奨3：要件への疑問7の末尾の「D-04 8節に古い案内が残っている」は D-04 の修正で古くなったので消す。
+- 2026-09-26T12:06:44+09:00 START D-03 attempt=1
+- 2026-09-26T12:08:15+09:00 DONE D-03 attempts=1

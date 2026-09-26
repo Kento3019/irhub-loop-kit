@@ -404,8 +404,15 @@ bool schedulesFromJson(std::string_view body, ScheduleJsonKind kind, SchedulePar
 // エクスポートのファイル名（ApiResponse::downloadFilename）
 std::string exportFilename(const ClockReading& now);
 
+// LocalTime → "YYYY-MM-DDTHH:MM:SS+09:00"（ゼロ埋め、6.2 の exportedAt と同じ書式）。
+// schedulesToJson の exportedAt はこれで作る。api の /api/status の now もこれを使う（D-04 11節）。
+// synced の確かめは呼ぶ側で行う（未取得なら呼ばずに null を書く）。
+std::string formatJstIso(const LocalTime& t);
+
 }  // namespace irhub
 ```
+
+`formatJstIso` の作り方：`char buf[32]; snprintf(buf, sizeof buf, "%04d-%02d-%02dT%02d:%02d:%02d+09:00", t.year, t.month, t.day, t.hour, t.minute, t.second);` を `std::string` にして返す（各フィールドは `int` に上げて渡す）。値の範囲は確かめない（`LocalTime` は D-06 が `getLocalTime()` から作る正しい値の前提）。
 
 使う ArduinoJson v7 の API：`JsonDocument`、`deserializeJson(doc, const char* input, size_t inputSize)`（戻り値 `DeserializationError`、`if (err)` で失敗判定）、`JsonVariant::is<T>()`（`bool`・`int`・`const char*`・`JsonArray`・`JsonObject`）、`as<T>()`、`JsonObject` の `for (JsonPair kv : obj)` と `kv.key().c_str()`、`JsonArray::size()`、`to<JsonObject>()`/`add<JsonObject>()`、`serializeJson(doc, std::string&)`。
 
@@ -487,7 +494,7 @@ std::string exportFilename(const ClockReading& now);
 
 - キーは `version`・`exportedAt`・`schedules` の3つ（要件5章の例どおり）。`max` は入れない。
 - `version`：整数 `kScheduleExportVersion`（今は 1）。1件の形や意味を変えたら 2 に上げる。
-- `exportedAt`：`ClockReading::local` から `"YYYY-MM-DDTHH:MM:SS+09:00"`（ゼロ埋め）。`synced == false` のときは `null`。インポートでは読まない（有っても無くても、`null` でもよい）。
+- `exportedAt`：`synced` なら `formatJstIso(now.local)`（`"YYYY-MM-DDTHH:MM:SS+09:00"`、ゼロ埋め）。`synced == false` のときは `null`。インポートでは読まない（有っても無くても、`null` でもよい）。
 - 応答：200、`contentType = "application/json"`、`downloadFilename = exportFilename(now)`。
 - ファイル名：`synced` なら `irhub-schedules-YYYYMMDD-HHMM.json`（例 `irhub-schedules-20260925-2000.json`）、そうでなければ `irhub-schedules.json`。
 - 0 件でもエクスポートできる（`"schedules": []`）。
@@ -609,6 +616,7 @@ schedule_json が形・型で返す文言（7 の `<キー>: <理由>`）：
   - 往復：`schedulesToJson(Export)` → `schedulesFromJson(Export)` → `replaceAll` で id・内容が元と一致。0 件でも往復できる。
   - 6.1 の3つの実例が読める。出力の曜日は日曜始まり、エアコンの `action` は値のあるキーだけ。
   - `exportedAt`：`synced` なら `+09:00` 付きのゼロ埋め、未取得なら `null`。`exportFilename` の2通り。
+  - `formatJstIso`：2026-01-05 07:03:09 → `"2026-01-05T07:03:09+09:00"`（1桁の月日時分秒がゼロ埋め）。synced の Export の `exportedAt` が `formatJstIso(now.local)` と同じ文字列。
   - 6.3 の各行と 6.4 の文言：本文 8193 バイト、壊れた JSON、`version` 無し／`2`／`"1"`、`schedules` 無し／オブジェクト、`kScheduleMax+1` 件、`time` の `"7:00"`／`"24:00"`／`"07:60"`、曜日 `"mo"`・重複・空、`target` 不明、`action` の知らないキー、`temp` が `26.5`（`is<int>()` の要確認を兼ねる）、`button` 不明、重複 id。
   - `id`（6.1 の id の手順）：`0`／`-1`／`10000`／`70000` → `schedules[i].id: out of range`。`1.5`／`"1"`／`true`／`null` → `schedules[i].id: must be integer`。`1` と `kScheduleIdMax` は通る。`id` 無しは採番される。`70000` が 4464（`uint16_t` に丸めた値）として通らないこと。いずれも失敗後に一覧が変わらない。
   - 件数超過の文言が `kScheduleMax` から作られる（期待値も `snprintf` で `kScheduleMax` から作る）。
