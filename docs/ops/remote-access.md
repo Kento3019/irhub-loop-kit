@@ -75,7 +75,7 @@ F6 の前提は「ESP32 の IP が固定されていること」。固定のや�
 
 目的：Tailscale の端末の鍵は既定で180日で切れ（公式の Key expiry のページ：「By default, new domains are set with an expiry period of 180 days.」）、切れると PC で再ログインするまで外からつながらなくなる。サブネットルーターにする PC は常時使うので、鍵の有効期限を無効にする。
 
-根拠：Tailscale 公式のサブネットルーターのページが勧めている設定（「You can disable key expiry on your server to avoid having to periodically reauthenticate.」）。H-DESIGN のレビューで人が手順に入れると判断した。
+根拠：Tailscale 公式のサブネットルーターのページが勧めている設定（「You can disable key expiry on your server to avoid having to periodically reauthenticate.」）。H-DESIGN のレビューで人が手順に入れると判断した。この節の2つの英文の引用（上の目的の Key expiry のページの文と、このサブネットルーターのページの文）は、人が公式ページの原文と照合済み（2026-09-26）。
 
 やり方（公式の Key expiry のページの手順）：
 1. 管理画面の Machines ページを開く
@@ -195,6 +195,7 @@ ESP32 の IP を変えた場合（ルーターの交換、方式A↔B の切り�
 |---|---|---|
 | 家の中でも `http://<IP>/` が開けない | ESP32 のシリアル、D-06 の IP の確認 | Tailscale の問題ではない。手順0に戻る |
 | 管理画面で PC が Connected でない | PC の電源・スリープ・サインアウト状態 | 手順2・3をやり直す |
+| 管理画面で PC が Expired（鍵の期限切れ）になっている／外から急につながらなくなった | 管理画面の Machines の PC の行（期限切れの表示の文言は要確認） | PC で Tailscale に再ログインし、手順1a をやり直す |
 | PC に Subnets の表示が出ない | 手順4のコマンドの出力 | 管理者の PowerShell で実行したか確かめ、手順4をやり直す |
 | ルートは承認済みなのに外から開けない | 管理画面の Access controls、PC の Windows の設定 | 方針ファイルを書き換えていれば、スマホから `/32` への通信を許す規則を確かめる（要確認）。Windows の IP 転送やファイアウォールの設定が要るかは要確認（公式に Windows の手順が無い）。家の中で PC のブラウザから `http://<IP>/` が開けることを先に確かめる |
 | 外出先の Wi-Fi につないだスマホでだけ開けない | その Wi-Fi のアドレス | 外出先の LAN が同じ番号（例 `192.168.1.x`）を使っていると、そちらが優先される可能性がある（要確認）。モバイル回線で使う |
