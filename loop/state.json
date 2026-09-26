@@ -455,7 +455,7 @@
       "id": "I-02",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "T-03",
         "I-01"
@@ -483,7 +483,11 @@
           "env": "esp32"
         }
       ],
-      "brief": "test/test_schedule を通す。既存テストも全部通ったままにする。"
+      "brief": "test/test_schedule を通す。既存テストも全部通ったままにする。",
+      "attempts": 1,
+      "base_commit": "ea6fa25135eb718eea105f71f4f7b3b5b75e36fb",
+      "started_at": "2026-09-26T23:12:28+09:00",
+      "done_at": "2026-09-26T23:21:32+09:00"
     },
     {
       "id": "T-04",
