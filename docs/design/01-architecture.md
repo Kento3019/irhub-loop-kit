@@ -253,7 +253,14 @@ class Hub {
   void tick(uint32_t nowMs);
 
   // API から使う操作（詳細な引数・エラーは D-02 / D-04）
-  // 戻り値＝検証に通ったか。true なら状態を更新し済みで、sendAc をちょうど1回呼んでいる。
+  // 戻り値＝検証に通ったか。true なら状態（モード別の記憶も含む）を更新し済み。
+  // 送信の条件（人の判断、H-DESIGN レビュー。詳細は D-02）：
+  //  - patch が power を含む（power:true／power:false）、または更新前が運転中（power=true）
+  //    → sendAc(状態一式) をちょうど1回呼ぶ
+  //  - 更新前が停止中（power=false）で、patch が power を含まない（温度・モード・風量・風向だけ）
+  //    → 状態は更新するが sendAc は呼ばない（戻り値は true）
+  //    理由：再起動後は実機の状態が分からないまま power=false で始まるため、
+  //    動いているエアコンに温度変更だけで停止信号が出るのを防ぐ
   // false なら状態は変えず、送信もしない（*error に理由）。
   // sendAc の戻り値は applyAc の戻り値に含めない。sendAc が false でも更新した状態は戻さない
   // （赤外線は一方通行で、状態は「最後に指示した内容」を表すため）。
@@ -296,8 +303,12 @@ sequenceDiagram
   R->>R: JSON 解析・AcPatch に変換（D-04）
   R->>H: applyAc(patch, &err)
   H->>H: 検証・部分更新（D-02）
-  H->>IR: sendAc(状態一式)
-  IR-->>H: true
+  alt patch が power を含む、または更新前が運転中
+    H->>IR: sendAc(状態一式)
+    IR-->>H: true
+  else 停止中に power を含まないパッチ
+    Note over H: 状態だけ更新し、送らない
+  end
   H-->>R: true
   R-->>WS: {200, "application/json", {...}}
   WS-->>Phone: 200
@@ -587,7 +598,9 @@ flowchart LR
 - N-BOOT／N-TIME：`FakeClock` が `synced=false` の間は、スケジュールを登録していても `tick()` で送信しない。
 - N-STATE：新しく生成した `Hub` の `acState()` が F2 の初期値、`schedules()` が 0 件、`lastClimate().valid == false`。
 - F5：`tick(0)` で `readCount == 1`（初回は即読む）、`tick(29999)` で 1 のまま、`tick(30000)` で 2。`millis()` の一周（`tick(0xFFFFFFF0)` の後 `tick(0x00007520)`、差 30000）でも 30 秒経過として読む。読み取り失敗（`valid=false`）が `lastClimate()` に反映される。
-- F1：`applyAc()` 1 回で `acCount` がちょうど 1 増え、`lastAc` が状態一式（変更していない項目も含む）になる。検証エラー時は戻り値 false、送信 0 回、`acState()` は変わらない。`FakeIrSender::sendAc` が false を返す設定でも `applyAc()` は true を返し、`acState()` は更新後の値のまま。
+- F1：運転中（power=true）の `applyAc()`、または power を含むパッチ（`power:true`／`power:false`）の `applyAc()` 1 回で `acCount` がちょうど 1 増え、`lastAc` が状態一式（変更していない項目も含む）になる。
+- F1（停止中の設定変更）：停止中（power=false、初期状態を含む）に power を含まないパッチ（例：`temp` だけ、`mode` だけ）で `applyAc()` を呼ぶと、戻り値 true、`acCount` は 0 のまま（増えない）、`acState()`（モード別の記憶も含む）は更新後の値になる。続けて `power:true` だけのパッチを送ると `acCount` が 1 増え、`lastAc` にそれまでの変更がまとめて入っている。
+- F1（エラーと送信失敗）：検証エラー時は戻り値 false、送信 0 回、`acState()` は変わらない。`FakeIrSender::sendAc` が false を返す設定でも `applyAc()` は true を返し、`acState()` は更新後の値のまま。
 - F3：`pressLight(LightButton::Night)` で `lightCount == 1`、`lastLight == Night`。`parseLightButton` が6つの文字列を受け、それ以外は `nullopt`。
 - API：`ApiRouter::handle` がルーティング表の各メソッド・パスを該当処理へ振り分ける（中身の検証は test_api、D-04）。
 - N-WIFI は native では確かめない（`src/wifi_manager` にあるため。下の実機で確かめる）。
