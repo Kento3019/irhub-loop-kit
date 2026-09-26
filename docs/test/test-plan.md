@@ -13,9 +13,9 @@
 | 種類 | 実行方法 | 置き場所 | 書く作業項目 | ケースID |
 |---|---|---|---|---|
 | native 単体テスト（Unity） | `pio test -e native` | `test/test_ac_state/`（`AcModel`・`cap::`・文字列変換） | T-02 | TC-N01〜TC-N34 |
-| 〃 | 〃 | `test/test_schedule/`（スケジュールの純関数・`ScheduleList`・`schedule_json`・`Hub` のスケジュール実行） | T-03 | TC-N35〜TC-N129、TC-N182、TC-N183 |
-| 〃 | 〃 | `test/test_api/`（`Hub` の基本動作・`ApiRouter`） | T-04 | TC-N130〜TC-N181、TC-N184〜TC-N193 |
-| 実機（人が行う） | 手順どおりに操作して目で確かめる | この文書の「テストケース（実機）」 | H-0〜H-6 のゲートで人が使う | TC-H01〜TC-H49、TC-H60、TC-H61、TC-H64〜TC-H66、TC-H68〜TC-H70、TC-H75 |
+| 〃 | 〃 | `test/test_schedule/`（スケジュールの純関数・`ScheduleList`・`schedule_json`・`Hub` のスケジュール実行） | T-03 | TC-N35〜TC-N129、TC-N182、TC-N183、TC-N197、TC-N198 |
+| 〃 | 〃 | `test/test_api/`（`Hub` の基本動作・`ApiRouter`） | T-04 | TC-N130〜TC-N181、TC-N184〜TC-N196、TC-N199〜TC-N201 |
+| 実機（人が行う） | 手順どおりに操作して目で確かめる | この文書の「テストケース（実機）」 | H-0〜H-6 のゲートで人が使う | TC-H01〜TC-H49、TC-H60、TC-H61、TC-H64〜TC-H66、TC-H68〜TC-H70、TC-H75、TC-H76 |
 | PC とモック（人が行う） | `python tools/mock_server.py`、`python tools/embed_html.py` | 同上 | I-04 の後、H-4 の前に人が行う | TC-H50〜TC-H59、TC-H62、TC-H63、TC-H67、TC-H71〜TC-H74 |
 
 - `Hub` を使うテストの置き場所（D-02 テスト観点で「T-01 で決める」とされた点）：`Hub::applyAc`・`Hub::pressLight`・コンストラクタ（N-BOOT）・センサー周期（F5）は `test/test_api/`、`Hub::tick` のスケジュール実行と `Hub::replaceSchedules` は `test/test_schedule/` に置く。
@@ -241,6 +241,8 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N129 | [F4-IO] | 1件目の id を `10000000000`（`int` に入らない整数。D-03 6.1 の id の手順4、要確認の確認を兼ねる） | Export で読む | false。`r.error` が `schedules[0].id: out of range`（`is<long long>()` が使える場合）または `schedules[0].id: must be integer`（手順4を省いた場合）のどちらか。どちらだったかをテストの出力（`TEST_MESSAGE`）に残す |
 | TC-N182 | [F4-IO] | エアコンの件の action を `{"mode":"heat","temp":20}`（`power` 無し） | Export で読む | false、`schedules[0].action.power: missing`（6.1 の表で `power` は必須。6.3 の順7） |
 | TC-N183 | [F4-IO] | 1件目（`action` の外）に知らないキー `"note":"x"` を足す | Export で読む | false。`r.error` が `schedules[0]` で始まる（6.1「1件の中の表に無いキーは 400」。文言の残りは設計に無い：設計の不足5） |
+| TC-N197 | [F4-IO] [N-TIME] | `LocalTime` を 2026-01-05 07:03:09、および 2026-09-25 20:00:00 に | `formatJstIso(t)` | `"2026-01-05T07:03:09+09:00"`（1桁の月・日・時・分・秒がゼロ埋め）、`"2026-09-25T20:00:00+09:00"`（D-03 6節） |
+| TC-N198 | [F4-IO] | 同期済み local 2026-01-05 07:03:09 の `ClockReading` を now とし、例の3件の一覧 | `schedulesToJson(一覧, Export, now)` を読み直した `exportedAt` と、`formatJstIso(now.local)` を比べる | 2つが同じ文字列（`"2026-01-05T07:03:09+09:00"`。`exportedAt` は `formatJstIso` で作る。D-03 6.2） |
 
 （TC-N99 は欠番）
 
@@ -265,12 +267,15 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N140 | [F3] | — | `parseLightButton` に `power` `night` `brighter` `dimmer` `full` `half`、`on` `Power` `""` | 6つは `Power`〜`Half` になり `toString` で元に戻る。`on`・`Power`・`""` は `nullopt` |
 | TC-N185 | [F1] | 生成直後（`power=false`）。`cap::kSwingVChoices` のうち `kSwingVDefault` と違う値 v を探す（今は Auto。無ければ4回目を省く） | `applyAc({mode=Heat})`、`applyAc({tempC=27})`、`applyAc({fan=High})`、`applyAc({swingV=v})` を順に | 4回とも true。毎回の後で `acCount=0`（停止中に power を含まないパッチは送らない。D-02 6節）。最後の `acState()` が `power=false, mode=Heat, hasTemp=true, tempC=27, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（今は Off） |
 | TC-N186 | [F1] | TC-N185 の4回の後 | `applyAc({power=true})` | true、`acCount=1`。`lastAc` が `power=true, mode=Heat, hasTemp=true, tempC=27, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（今は Off。停止中の変更がまとめて送られる）で、`acState()` と全7項目一致 |
-| TC-N187 | [F1] [F2] | 生成直後（`power=false`） | `applyAc({mode=Heat})` → `({tempC=27})` → `({fan=High})` → `({mode=Cool})` → `({mode=Heat})` | 5回とも true、`acCount=0` のまま。4回目の後 `acState()` が `mode=Cool, tempC=26, fan=Auto`、5回目の後 `mode=Heat, tempC=27, fan=High`（停止中の変更がモード別の記憶に入っている。`Hub` に `settingsFor` が無いのでモード切替で確かめる：設計の不足9） |
+| TC-N187 | [F1] [F2] | 生成直後（`power=false`） | `applyAc({mode=Heat})` → `({tempC=27})` → `({fan=High})` → `({mode=Cool})` → `({mode=Heat})` | 5回とも true、`acCount=0` のまま。4回目の後 `acState()` が `mode=Cool, tempC=26, fan=Auto`、5回目の後 `mode=Heat, tempC=27, fan=High`（停止中の変更がモード別の記憶に入っている。`Hub` にはモード別の記憶を読む関数が無い（D-02 テスト観点）ので、モード切替で `acState()` に出る値で確かめる） |
 | TC-N188 | [F1] | 生成直後（`power=false`） | `applyAc({power=false})` → `applyAc({power=false, tempC=24})` | 1回目：true、`acCount=1`、`lastAc` が `power=false, mode=Cool, tempC=26, fan=Auto`（今と同じ値でも power を含むので送る）。2回目：true、`acCount=2`、`lastAc.power=false`、`lastAc.tempC=24` |
 | TC-N189 | [F1] | 生成直後に `applyAc({power=true})`（`acCount=1`） | `applyAc({power=false})` → `applyAc({tempC=25})` | 1回目：true、`acCount=2`、`lastAc.power=false`。2回目：true、`acCount=2` のまま、`acState().tempC=25`、`lastAc.tempC=26`（停止にした後の変更は送らない） |
 | TC-N190 | [F1] | 生成直後に `applyAc({power=true})`（`acCount=1`） | `applyAc({tempC=cap::kTempMaxC+1}, &err)`（今は 31） | false、`err="temp out of range"`、`acCount=1` のまま、`acState()` が `power=true, mode=Cool, tempC=26, fan=Auto`（運転中の失敗も送信 0 回。停止中の失敗は TC-N136） |
-| TC-N193 | [F1] | 生成直後（`power=false`、`acCount=0`） | `applyAc({power=true, tempC=cap::kTempMaxC+1}, &err)`（今は 31） | false、`err="temp out of range"`、`acCount=0` のまま、`acState()` が `power=false, mode=Cool, tempC=26, fan=Auto`（停止中でも power を含むパッチの検証失敗は送信 0 回・状態不変。D-02 6節） |
 | TC-N191 | [F1] [F2] | 生成直後 | D-02 4節の遷移例の表の14行を上から順に `applyAc`（`{"temp":31}` の行は `kTempMaxC+1`）。各行の前後で `acCount` の差を取る | 差が上から `1,1,1,1,1,1,0,0,1,0,0,1,1,0`（表の「送信」欄どおり）、最後の `acCount=9`。最後の `lastAc` が `power=true, mode=Cool, tempC=27, fan=Low` |
+| TC-N193 | [F1] | 生成直後（`power=false`、`acCount=0`） | `applyAc({power=true, tempC=cap::kTempMaxC+1}, &err)`（今は 31） | false、`err="temp out of range"`、`acCount=0` のまま、`acState()` が `power=false, mode=Cool, tempC=26, fan=Auto`（停止中でも power を含むパッチの検証失敗は送信 0 回・状態不変。D-02 6節） |
+| TC-N194 | [F1] [F2] | 生成直後（`power=false`、冷房 26℃）。`cap::kSwingVChoices` のうち `kSwingVDefault` と違う値 v を探す（今は Auto。無ければ4回目を省く） | D-02 テスト観点の手順どおり、同じ `Hub` で `applyAc({tempC=27})` → `({mode=Heat})` → `({fan=High})` → `({swingV=v})` | 4回とも true、毎回の後で `acCount=0`。4回の後の `acState()` が `power=false, mode=Heat, hasTemp=true, tempC=20`（暖房の記憶を復元。冷房で変えた 27 は入らない）`, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（今は Off） |
+| TC-N195 | [F1] [F2] | TC-N194 の4回の後（同じ `Hub`） | `applyAc({power=true})` | true、`acCount=1`。`lastAc` が `power=true, mode=Heat, hasTemp=true, tempC=20, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（停止中の変更がまとめて入る。27 は冷房の記憶なので入らない）で、`acState()` と全7項目一致 |
+| TC-N196 | [F1] [F2] | TC-N195 の後（同じ `Hub`、運転中） | `applyAc({mode=Cool})` | true、`acCount=2`。`lastAc` が `power=true, mode=Cool, hasTemp=true, tempC=27, fan=Auto, swingV=cap::kSwingVDefault`（今は Off）`, swingH=cap::kSwingHDefault`（今は Off）（停止中に変えた冷房の 27 が残っていることを `Hub` から見える値で確かめる） |
 
 #### C-2. ルーティング
 
@@ -280,6 +285,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N142 | [API] | 生成直後 | `GET /api/foo`、`GET /api/status/`、`GET /favicon.ico` | 3つとも 404、本文 `{"error":"not found"}` |
 | TC-N143 | [API] | 生成直後 | `POST /api/status`、`GET /api/ac`、`PUT /api/light`、`Other /api/schedules`、`GET /api/schedules/import`、`POST /api/schedules/export` | 6つとも 405、`{"error":"method not allowed"}`。`Other /api/foo` は 404 |
 | TC-N144 | [API] | 生成直後 | TC-N142・N143 の要求をすべて送る | `acCount=0`、`lightCount=0`、`acState()` 初期値のまま、一覧 0 件 |
+| TC-N200 | [API] | 生成直後 | `POST /`、`PUT /`、`Other /`（本文はどれも `{}`） | 3つとも 404（405 ではない）、本文 `{"error":"not found"}`。`acCount=0`、`lightCount=0`（`/` の GET 以外は ApiRouter に来て「それ以外」＝404。D-04 10節） |
 
 #### C-3. GET /api/status
 
@@ -292,6 +298,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N149 | [F5] | TC-N148 の後、`next={false,0,0}` で `tick(30000)` | `GET /api/status` | `climate.valid=false`、`temperature` と `humidity` が null |
 | TC-N150 | [F1] | `tempSupported(m)` が false のモード m（無ければ IGNORE）へ `POST /api/ac {"mode":m}` | `GET /api/status` | `ac.temp` が null |
 | TC-N151 | [API] | 生成直後 | `GET /api/status` を3回 | `acCount=0`、`lightCount=0`、`acState()` 初期値のまま |
+| TC-N199 | [API] [N-TIME] [F4-IO] | FakeClock を同期済み local 2026-01-05 07:03:09 に固定（`seq` は空。何回呼んでも同じ時刻） | `GET /api/status` と `GET /api/schedules/export` | `clock.now` と export 本文の `exportedAt` がどちらも `"2026-01-05T07:03:09+09:00"` で同じ文字列（どちらも `formatJstIso` で作る。D-04 11節） |
 
 #### C-4. POST /api/ac
 
@@ -340,6 +347,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N179 | [N-TIME] [F4] | FakeClock 未取得 | GET schedules、PUT（2件）、GET export、POST import | 4つとも 200 |
 | TC-N180 | [F4] [N-BOOT] | FakeClock 同期済み | TC-N169〜N179 の要求をすべて送る | `acCount=0`、`lightCount=0` |
 | TC-N184 | [F4] [F4-IO] [API] | TC-N170 の2件（id 1, 2） | `PUT` を3通り：(a) 1件目の id が `10000000000`、(b) 1件目の action が `{"mode":"heat"}`（`power` 無し）、(c) 1件目に知らないキー `"note":"x"`。それぞれの後に `GET` | 3つとも 400。(a) の `error` は `schedules[0].id: out of range` か `schedules[0].id: must be integer` のどちらか、(b) は `schedules[0].action.power: missing`、(c) は `schedules[0]` で始まる。3回とも `GET` が元の2件（id 1, 2、内容も同じ） |
+| TC-N201 | [F4-IO] [API] | TC-N170 の2件（id 1, 2） | `POST /api/schedules/import` に `{"version":1,"schedules":[有効な件に "id":3, 有効な件に "id":3]}` → `GET` | 400、`{"error":"schedules[1]: duplicate id"}`（`badIndex` から ApiRouter が組み立てる。D-03 6.3 順9）。`GET` は元の2件（id 1, 2） |
 
 #### C-7. エラー本文と認証
 
@@ -435,8 +443,11 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-H41 | [F4-IO] [N-STATE] | TC-H40 のファイル | EN ボタンでリセット → 画面を開く → 「インポート」で TC-H40 のファイルを選ぶ | リセット後の一覧は空。インポート後「<n>件を読み込みました」と出て、一覧が id を含めエクスポート前と同じになる |
 | TC-H42 | [F4-IO] | TC-H40 のファイルの `"version": 1` を `2` に書き換えたもの | インポートする | 「読み込めませんでした：unsupported version」。一覧は変わらない。同じファイルを続けてもう一度選べる |
 | TC-H43 | [N-BOOT] [F4] | 今の時刻を T とし、T+2分・毎日の照明 `full` の1件だけを登録してエクスポートしておく。LED をカメラで映す | T+2分の 20 秒前に EN ボタンでリセット → T+2分になってから 10 秒以上たった後（同じ分の中）に、エクスポートしたファイルをインポート → T+3分まで待つ | リセットから T+3分まで LED が一度も光らない（リセット直後は一覧が空。判定済みの分にインポートした予定はその分には送られない） |
+| TC-H76 | [F4-IO] [API] | NTP 取得済み（`clock.synced=true`）。スケジュールを1件以上登録。PC の端末 | `curl -D - http://IP/api/schedules/export` を実行し、そのときの時計（JST）を控える | 応答 200。応答ヘッダに `Content-Disposition` があり、その `filename` が `irhub-schedules-YYYYMMDD-HHMM.json`（実行した時刻の JST の年月日・時分）。本文の `exportedAt` が同じ日付・時分の `+09:00` の文字列（D-04 のテスト観点。スマホでの保存は URL を直接開かず TC-H40 の画面のボタンで確かめる） |
 
 ### フェーズ6（H-6）：外出先から（`docs/ops/remote-access.md` の手順0〜7を済ませてから）
+
+期待結果を満たさない行があったら、`docs/ops/remote-access.md` の「うまくいかないとき」の表で当てはまる症状を探し、「見るところ」で見えたことと行った「対応」を、その行の ID と一緒にメモに残す。対応の後にその行をやり直して満たせば ✓ にしてよい（満たさなければ fail のまま）。
 
 | ID | 要件 | 前提 | 操作 | 期待結果（完成判定） |
 |---|---|---|---|---|
@@ -480,22 +491,22 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 
 | 要件 | native（TC-N） | 実機・PC（TC-H） |
 |---|---|---|
-| [F1] | N03〜N20、N22〜N34、N91、N92、N135〜N138、N146、N150、N152〜N161、N164、N185〜N193 | H03〜H06、H08、H09、H11〜H13、H15、H17、H22、H50、H51、H62、H68〜H71 |
-| [F2] | N01、N02、N08〜N11、N23、N24、N131、N145、N154、N187、N191 | H16、H62 |
+| [F1] | N03〜N20、N22〜N34、N91、N92、N135〜N138、N146、N150、N152〜N161、N164、N185〜N196 | H03〜H06、H08、H09、H11〜H13、H15、H17、H22、H50、H51、H62、H68〜H71 |
+| [F2] | N01、N02、N08〜N11、N23、N24、N131、N145、N154、N187、N191、N194〜N196 | H16、H62 |
 | [F3] | N93、N139、N140、N165〜N167 | H07、H14、H15、H23 |
 | [F4] | N35〜N98、N102〜N104、N123、N127、N169〜N173、N179、N180、N184 | H37、H38、H43、H58、H60 |
 | [F4-LIMIT] | N69、N70、N105、N114、N169、N171 | H39、H58 |
-| [F4-IO] | N76、N77、N100、N101、N106〜N129、N174〜N178、N182〜N184 | H40〜H42、H57、H72〜H74 |
+| [F4-IO] | N76、N77、N100、N101、N106〜N129、N174〜N178、N182〜N184、N197〜N199、N201 | H40〜H42、H57、H72〜H74、H76 |
 | [F5] | N132〜N134、N145、N148、N149 | H18〜H20、H24、H55、H56、H67 |
 | [F6] | 対象外（code=false。ESP32 側の対応なし） | H44〜H49、H63、H64、H66、H75 |
 | [N-AUTH] | N181 | H28 |
 | [N-WIFI] | 対象外（判断が `src/wifi_manager` にあり native テストを作らない。D-01 1節の人の判断） | H30〜H33、H61、H64 |
 | [N-STATE] | N01、N82、N131 | H34、H41 |
 | [N-BOOT] | N43、N82、N84、N130、N145、N180 | H10、H30、H35、H43、H61、H69 |
-| [N-TIME] | N35〜N37、N43、N83、N84、N86、N87、N107、N145、N147、N175、N179 | H26、H27、H54、H60、H61、H63、H64 |
+| [N-TIME] | N35〜N37、N43、N83、N84、N86、N87、N107、N145、N147、N175、N179、N197、N199 | H26、H27、H54、H60、H61、H63、H64 |
 | [N-RESP] | 対象外（時間の計測は実機だけ。D-05 9節・D-06 3節） | H25、H49、H52、H65 |
 | [UI] | 対象外（画面は C++ ではない。画面が頼る API の形は N145〜N181 で確かめる） | H21〜H24、H36、H50〜H59、H62、H63、H67、H70〜H74 |
-| [API] | N141〜N163、N165、N166、N168、N181、N184、N192 | H17、H29 |
+| [API] | N141〜N163、N165、N166、N168、N181、N184、N192、N199〜N201 | H17、H29、H76 |
 | [HW-PINS] | 対象外（`src/pins.h` は native でビルドしない） | H01、H02、H10、H11、H14、H18 |
 | （参考）[N-IP] | 対象外（この作業項目の対象要件 T-01 の reqs の外。native の対象コードも無い） | H45、H64（F6 の前提として IP 固定を確かめるために付けた。カバレッジの判定には数えない） |
 
@@ -511,6 +522,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 6. `Hub::clockNow()` が `IClock::now()` を何回呼ぶかは明記されていない。TC-N174 はそれに頼らず、呼ぶたびに進む FakeClock（`seq`）で「ファイル名と `exportedAt` が同じ時刻」だけを確かめる（D-04 8節）。
 7. F5 の画面への反映の時間：D-05 のテスト観点は「30 秒以内に変化が反映される」だが、センサーの周期（30 秒、D-06）と画面の読み直し（30 秒、D-05）が重なると最悪 60 秒になる。TC-H24 は 60 秒で判定した。どちらを正とするかは人が決める。
 8. N-RESP で、エアコンの送信中に照明を押した場合の合否の値が無い（D-06 3.3「1 秒前後に収まる見込み。実機で測る」）。TC-H65 (a) は時間を記録するだけにした。
-9. D-02 のテスト観点（Hub と合わせて）は「停止中の変更の後、`acState()` と `settingsFor` が更新後の値」とするが、`Hub` には `settingsFor` が無い（D-01 5節は `acState()` だけ）。TC-N187 はモードを切り替えて `acState()` に出る値で、停止中の変更がモード別の記憶に入ったことを間接に確かめる。`settingsFor` そのものは `AcModel` 単体（TC-N25）で確かめる。
-11. D-04 のテスト観点（04-api.md 531行「`{"temp":27}` → 200 … `acCount` が1増え」）は人の判断(2)の前のままで、生成直後（停止中）に送ると D-02 6節・D-01 の「停止中に power を含まないパッチは送らない」と食い違う。人の判断(2)を反映した D-02 6節と D-01 を正とし、TC-N152・N163・N164 は前提に「`{"power":true}` で運転中にする」を足した。停止中の `{"temp":27}` は TC-N192 で送信 0 回を確かめる。D-04 のテスト観点の文言を直す必要がある。
+9. （解消済み）D-02 のテスト観点が `Hub` に無い `settingsFor` を期待値に使っていた点。D-02 のテスト観点が直り、`Hub` から見える値（`{"mode":"cool"}` の後の `lastAc.tempC=27`）で確かめる手順になった。その手順（temp→mode→fan→swingV→power→mode=cool）どおりのケースとして TC-N194〜N196 を足した。TC-N185〜N187（mode→temp の順で、暖房の記憶に入った 27 を確かめる）は別の観点としてそのまま残す。`settingsFor` そのものは `AcModel` 単体（TC-N25）で確かめる。
 10. エクスポートで、応答を待った後の `a.click()` を iOS Safari・Android Chrome が止めた場合の代わりの手段が決まっていない（D-05 6.5 の要確認・疑問7）。TC-H40 は保存されなければ fail とし、どうなったかを記録するだけにした（代わりの手段は人が決める）。
+11. （解消済み）D-04 のテスト観点の `{"temp":27}` が停止中の規則（D-02 6節・D-01）の前の書き方だった点。D-04 のテスト観点は「先に `{"power":true}` で運転中にしてから `{"temp":27}` → `acCount` 1→2」「生成直後（停止中）に `{"temp":27}` → `acCount==0`」に直った。TC-N152・N163・N164（運転中にしてから）と TC-N192（停止中は送信 0 回）はこの文言と一致する。
+12. D-05 8.2 の「200 の後の本文の読み取り（`res.text()`・`res.blob()`）が中止・失敗したら `showConnError()` で帯を出し直し、status 0 として扱う」を PC で起こす手段が無い（D-05 12節のモックのオプションは応答全体を遅らせる `--delay-ms` だけで、ヘッダを返した後に本文だけ遅らせる・切る方法が無い）。この扱いのケースは作らず、応答そのものの失敗・タイムアウト（TC-H53、TC-H73）だけを確かめる。
