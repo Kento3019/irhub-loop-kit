@@ -255,7 +255,7 @@ minute   = minOfDay % 60
 
 実例：`epochSec = 1790334000`（2026-09-25 20:00:00 JST、金曜）→ `epochMin = 29838900` → `{wday=5, hour=20, minute=0}`。
 
-`ClockReading::local`（D-06 が `getLocalTime()` から作る）は画面の時刻表示とエクスポートの `exportedAt` に使い、判定には使わない。判定は `epochSec` だけから作る（遡って判定する分の曜日・時分も同じ式で作れるため）。
+`ClockReading::local`（D-06 が `time()`＋`localtime_r()` から作る。D-06 1節・要件への疑問10）は画面の時刻表示とエクスポートの `exportedAt` に使い、判定には使わない。判定は `epochSec` だけから作る（遡って判定する分の曜日・時分も同じ式で作れるため）。
 
 #### 4.2 nextWindow の規則（二重実行の防止と、遅れて判定した場合）
 
@@ -412,7 +412,7 @@ std::string formatJstIso(const LocalTime& t);
 }  // namespace irhub
 ```
 
-`formatJstIso` の作り方：`char buf[32]; snprintf(buf, sizeof buf, "%04d-%02d-%02dT%02d:%02d:%02d+09:00", t.year, t.month, t.day, t.hour, t.minute, t.second);` を `std::string` にして返す（各フィールドは `int` に上げて渡す）。値の範囲は確かめない（`LocalTime` は D-06 が `getLocalTime()` から作る正しい値の前提）。
+`formatJstIso` の作り方：`char buf[32]; snprintf(buf, sizeof buf, "%04d-%02d-%02dT%02d:%02d:%02d+09:00", t.year, t.month, t.day, t.hour, t.minute, t.second);` を `std::string` にして返す（各フィールドは `int` に上げて渡す）。値の範囲は確かめない（`LocalTime` は D-06 が `time()`＋`localtime_r()` から作る正しい値の前提）。
 
 使う ArduinoJson v7 の API：`JsonDocument`、`deserializeJson(doc, const char* input, size_t inputSize)`（戻り値 `DeserializationError`、`if (err)` で失敗判定）、`JsonVariant::is<T>()`（`bool`・`int`・`const char*`・`JsonArray`・`JsonObject`）、`as<T>()`、`JsonObject` の `for (JsonPair kv : obj)` と `kv.key().c_str()`、`JsonArray::size()`、`to<JsonObject>()`/`add<JsonObject>()`、`serializeJson(doc, std::string&)`。
 
