@@ -484,6 +484,7 @@ constexpr irhub::StaticIpConfig kStaticIp = {
 
 - 値は `#define` ではなく `constexpr` にする（型が付き、名前空間に入る）。
 - `kUseStaticIp` を `if` で見る（2.1 の (4)）ので、方式A でも `kStaticIp` は書いておく必要がある（見本の値のままでよい）。
+- 入れ子の名前空間（`namespace irhub::secrets`）と 2.1 の `__has_include` は C++17 の書き方なので、`env:esp32` は `-std=gnu++17` でビルドする前提とする（今の platformio.ini では native にしか無い。I-04 で `env:esp32` の build_flags／build_unflags に入れる予定）。
 
 ### 8. 温湿度センサー（src/climate_dht20、F5）
 
