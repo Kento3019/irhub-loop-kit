@@ -578,7 +578,7 @@
       "id": "I-04",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "I-03"
       ],
@@ -621,8 +621,11 @@
         }
       ],
       "brief": "web/index.html を1ファイルで作る。tools/embed_html.py は PlatformIO の extra_scripts（pre:）で web/index.html を src/generated/index_html.h に埋め込む。tools/mock_server.py は Python 標準ライブラリだけで API を真似て web/index.html を返す（PCのブラウザで画面を確かめるため）。",
-      "attempts": 0,
-      "human_feedback": "人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。\n人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。"
+      "attempts": 3,
+      "human_feedback": "人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。\n人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。",
+      "base_commit": "447a660d4067ca29ab18143ffce770e8f64e3c56",
+      "started_at": "2026-09-27T00:08:48+09:00",
+      "done_at": "2026-09-27T00:12:14+09:00"
     },
     {
       "id": "I-05",

@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IRハブ</title>
+<link rel="icon" href="data:,">
+<style>
+[hidden] { display: none !important; }
+:root {
+  --bg: #f3f4f1;  --card: #ffffff;  --text: #1f2421;  --muted: #6b726e;
+  --accent: #2f6f5e;
+  --cool: #2c6aa0;  --heat: #b8662a;
+  --warn-bg: #fff3c4;  --warn-text: #5c4600;
+  --error-bg: #fde8e8; --error-text: #8a1c1c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; font-size: 16px; }
+main { max-width: 480px; margin: 0 auto; padding: 8px; }
+main.dim { opacity: .6; }
+button, a, input, select { touch-action: manipulation; font: inherit; }
+button, select { min-height: 44px; }
+button { border: 1px solid #c9ceca; background: #fafbf9; color: var(--text); border-radius: 10px; padding: 0 12px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+button svg { width: 22px; height: 22px; vertical-align: middle; }
+header#top { padding: 8px 4px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 18px; margin: 0; }
+#clock { font-variant-numeric: tabular-nums; }
+#climate, #ntp { color: var(--muted); font-size: 14px; }
+.banner { margin-top: 8px; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+.banner.warn { background: var(--warn-bg); color: var(--warn-text); }
+.banner.error { background: var(--error-bg); color: var(--error-text); cursor: pointer; }
+.card { background: var(--card); border-radius: 14px; padding: 12px; margin: 10px 0; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+#ac-power { min-width: 110px; }
+#ac-power svg { margin-left: 4px; }
+#ac-temp-box { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 12px 0; }
+#ac-temp-box button { width: 56px; height: 56px; font-size: 26px; border-radius: 50%; }
+#ac-temp { font-size: 48px; min-width: 130px; text-align: center; font-variant-numeric: tabular-nums; }
+#ac-card.off #ac-temp { color: var(--muted); }
+#ac-temp-none { margin: 20px 0; text-align: center; color: var(--muted); }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: center; }
+.choices .lab { width: 3.2em; color: var(--muted); font-size: 14px; }
+.choices button { display: inline-flex; align-items: center; gap: 4px; }
+.choices button.m-cool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
+.choices button.m-heat[aria-pressed="true"] { background: var(--heat); border-color: var(--heat); }
+.msg { min-height: 1.2em; margin: 6px 0 0; font-size: 14px; }
+.msg.err { color: var(--error-text); }
+#sched-list { list-style: none; margin: 8px 0; padding: 0; }
+#sched-list li { border-top: 1px solid #e3e6e3; padding: 8px 0; }
+#sched-list li.disabled .desc { color: var(--muted); }
+#sched-list .desc { margin-bottom: 6px; }
+#sched-list .t { font-weight: bold; margin-right: 6px; font-variant-numeric: tabular-nums; }
+#sched-list .btns { display: flex; gap: 6px; }
+#sched-list .empty { color: var(--muted); border: 0; }
+#sched-max-note { color: var(--muted); font-size: 14px; }
+#sched-ntp-note { color: var(--warn-text); font-size: 14px; margin: 6px 0; }
+#sched-form { border: 1px solid #d6dad7; border-radius: 10px; padding: 10px; margin: 8px 0; }
+#sched-form .f { margin: 8px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#sched-form label { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; }
+#sched-form input[type="time"] { min-height: 44px; font-size: 18px; }
+#sched-form input[type="checkbox"], #sched-form input[type="radio"] { width: 22px; height: 22px; }
+#sf-days label { min-width: 2.6em; }
+.io { display: flex; gap: 8px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main id="app">
+  <header id="top">
+    <div class="row"><h1>IRハブ</h1><span id="clock">--:--</span></div>
+    <div><span id="climate">室温 --.-℃  湿度 --.-%</span> <span id="ntp">時刻未取得</span></div>
+    <div id="ntp-warning" class="banner warn" hidden>時刻未取得のためスケジュールは実行されません</div>
+    <div id="conn-error" class="banner error" hidden role="alert">ESP32 に接続できません<span id="conn-last"></span></div>
+  </header>
+
+  <section id="ac-card" class="card off">
+    <div class="row"><h2>エアコン</h2><button id="ac-power" aria-pressed="false" disabled>停止中</button></div>
+    <div id="ac-temp-box"><button id="ac-temp-down" aria-label="温度を下げる" disabled>−</button><span id="ac-temp">--</span><button id="ac-temp-up" aria-label="温度を上げる" disabled>＋</button></div>
+    <div id="ac-temp-none" hidden></div>
+    <div id="ac-modes" class="choices"></div>
+    <div id="ac-fan" class="choices"></div>
+    <p id="ac-msg" class="msg" role="status"></p>
+  </section>
+
+  <section id="sched-card" class="card">
+    <div class="row"><h2>スケジュール <span id="sched-count">0/0件</span></h2>
+      <span><span id="sched-max-note" hidden></span> <button id="sched-add" type="button" disabled>＋追加</button></span></div>
+    <p id="sched-ntp-note" hidden>時刻未取得の間は実行されません</p>
+    <ul id="sched-list"></ul>
+    <form id="sched-form" hidden>
+      <div class="f"><label>時刻 <input id="sf-time" type="time" step="60" required></label></div>
+      <div class="f" id="sf-days"></div>
+      <div class="f"><label><input id="sf-enabled" type="checkbox"> 有効</label></div>
+      <div class="f">
+        <label><input id="sf-target-acon" type="radio" name="sf-target" value="acon"> エアコン運転</label>
+        <label><input id="sf-target-acoff" type="radio" name="sf-target" value="acoff"> エアコン停止</label>
+      </div>
+      <div class="f" id="sf-ac-fields">
+        <label>モード <select id="sf-mode"></select></label>
+        <label>温度 <select id="sf-temp"></select></label>
+        <label>風量 <select id="sf-fan"></select></label>
+      </div>
+      <p id="sf-msg" class="msg err" role="alert"></p>
+      <div class="f"><button id="sf-save" type="submit">保存</button><button id="sf-cancel" type="button">やめる</button></div>
+    </form>
+    <div class="io">
+      <button id="sched-export" type="button">エクスポート</button>
+      <button id="sched-import" type="button" disabled>インポート</button>
+    </div>
+    <input id="sched-file" type="file" accept=".json,application/json" hidden>
+    <p id="sched-msg" class="msg" role="status"></p>
+  </section>
+</main>
+<script>
+"use strict";
+// ---- 定数 ----
+const STATUS_POLL_MS = 30000;    // 仮(F5) 要件「更新間隔：仮に30秒」
+const FETCH_TIMEOUT_MS = 5000;   // 1回の要求の待ち時間の上限（推測）
+const MSG_OK_MS = 3000;          // 成功の知らせを出しておく時間
+const EXPORT_FALLBACK_NAME = "irhub-schedules.json";
+const BLOB_URL_REVOKE_MS = 10000; // 推測：保存が始まるまで Blob URL を残す時間
+const IMPORT_MAX_BYTES = 8192;   // D-03 の kScheduleJsonMaxBytes と同じ値
+
+// 列挙文字列の表示名（画面が持つのはこれだけ。並べる選択肢は acCapabilities から）
+const MODE_LABEL = { auto: "自動", cool: "冷房", dry: "除湿", heat: "暖房" };
+const FAN_LABEL  = { auto: "自動", min: "静音", low: "弱", medium: "中", high: "強" };
+const label = (table, s) => table[s] ?? s;
+const DAYS = [["sun","日"],["mon","月"],["tue","火"],["wed","水"],["thu","木"],["fri","金"],["sat","土"]];
+
+const $ = (id) => document.getElementById(id);
+
+// ---- アイコン（自作のインライン SVG） ----
+const svg = (inner) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' + inner + '</svg>';
+const MODE_ICON = {
+  auto: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 16.5 12 7l3.5 9.5M9.7 13.3h4.6"/>'),
+  cool: svg('<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>'),
+  dry:  svg('<path d="M12 3c3.5 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2.5-6 6-11z"/>'),
+  heat: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>'),
+};
+const FAN_AUTO_ICON = svg('<path d="M7 19 12 5l5 14M8.8 14h6.4"/>');
+function fanBarsIcon(n) {
+  let p = "";
+  for (let i = 0; i < n; i++) {
+    const x = 4 + i * 5, top = 18 - (i + 1) * 3.5;
+    p += '<path d="M' + x + ' 20V' + top + '"/>';
+  }
+  return svg(p);
+}
+const POWER_ICON = svg('<path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/>');
+
+// ---- 状態 ----
+let caps = null;          // 最後に受け取った acCapabilities
+let acShown = null;       // 画面に出している ac
+let acInFlight = false;
+let acQueue = [];
+let statusInFlight = false;
+let pollTimer = null;
+let clockOffsetMs = null;
+let clockTimer = null;
+let lastOkAt = null;      // 最後に /api/status が 200 だった端末の時刻
+let schedState = { max: 0, schedules: [] };
+let schedLoaded = false;   // GET/PUT/import の 200 で一覧を一度でも受け取ったか（受け取る前は上限を出さない）
+let schedBusy = false;
+let editingId = null;     // null=追加、数値=編集中の id
+let formOpen = false;
+const msgTimers = {};
+
+// ---- 通信（8.2） ----
+function showConnError() {
+  const last = lastOkAt ? "（最終更新 " + hms(lastOkAt) + "）" : "";
+  $("conn-last").textContent = last;
+  $("conn-error").hidden = false;
+  $("app").classList.add("dim");
+}
+function hideConnError() {
+  $("conn-error").hidden = true;
+  $("app").classList.remove("dim");
+}
+function hms(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+
+async function fetchRaw(method, path, body) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const done = () => clearTimeout(timer);
+  const opt = { method, cache: "no-store", signal: ctrl.signal, headers: {} };
+  if (body !== undefined) {
+    opt.headers["Content-Type"] = "application/json";
+    opt.body = typeof body === "string" ? body : JSON.stringify(body);
+  }
+  let res;
+  try {
+    res = await fetch(path, opt);
+  } catch (e) {
+    done();
+    showConnError();
+    return { status: 0, res: null, done };
+  }
+  if (res.status === 200) hideConnError();
+  return { status: res.status, res, done };
+}
+
+async function api(method, path, body) {
+  const r = await fetchRaw(method, path, body);
+  if (r.status === 0) return { status: 0, data: null };
+  let text;
+  try {
+    text = await r.res.text();
+  } catch (e) {
+    r.done();
+    showConnError();
+    return { status: 0, data: null };
+  }
+  r.done();
+  let data = null;
+  try { data = JSON.parse(text); } catch (e) { data = null; }
+  return { status: r.status, data };
+}
+
+// 8.3：200 以外の文言。prefix は 400 のときの前置き
+function errorText(r, prefix) {
+  if (r.status === 0) return "送れませんでした（通信エラー）";
+  const e = r.data && typeof r.data.error === "string" ? r.data.error : null;
+  if (r.status === 400 && e !== null) return prefix + "：" + e;
+  if (e !== null) return "エラー（HTTP " + r.status + "）：" + e;
+  return "エラー（HTTP " + r.status + "）";
+}
+function setMsg(id, text, isErr, autoClear) {
+  const el = $(id);
+  clearTimeout(msgTimers[id]);
+  el.textContent = text;
+  el.classList.toggle("err", !!isErr);
+  if (autoClear) msgTimers[id] = setTimeout(() => { el.textContent = ""; }, MSG_OK_MS);
+}
+
+// ---- 状態の読み直し（7節） ----
+function scheduleNextPoll() {
+  clearTimeout(pollTimer);
+  pollTimer = null;
+  if (document.hidden) return;
+  pollTimer = setTimeout(pollStatus, STATUS_POLL_MS);
+}
+async function pollStatus() {
+  if (statusInFlight) return;
+  statusInFlight = true;
+  try {
+    const r = await api("GET", "/api/status");
+    if (r.status === 200 && r.data) {
+      lastOkAt = new Date();
+      applyStatus(r.data);
+    }
+  } finally {
+    statusInFlight = false;
+    scheduleNextPoll();
+  }
+}
+function applyStatus(s) {
+  // 室温・湿度（7.0）
+  const c = s.climate;
+  if (c && c.valid && typeof c.temperature === "number" && typeof c.humidity === "number") {
+    $("climate").textContent = "室温 " + c.temperature.toFixed(1) + "℃  湿度 " + c.humidity.toFixed(1) + "%";
+  } else {
+    $("climate").textContent = "室温 --.-℃  湿度 --.-%";
+  }
+  // 時刻（7.1・8.1）
+  const synced = !!(s.clock && s.clock.synced);
+  $("ntp").textContent = synced ? "時刻同期済み" : "時刻未取得";
+  $("ntp-warning").hidden = synced;
+  $("sched-ntp-note").hidden = synced;
+  setClock(synced ? s.clock.now : null);
+  // エアコン
+  if (s.acCapabilities) caps = s.acCapabilities;
+  if (!acInFlight && acQueue.length === 0 && s.ac) acShown = s.ac;
+  renderAc();
+}
+
+// ---- 時計（7.1） ----
+const WEEK = ["日","月","火","水","木","金","土"];
+function setClock(now) {
+  const m = typeof now === "string" ? now.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\+09:00$/) : null;
+  if (!m) {
+    clockOffsetMs = null;
+    clearInterval(clockTimer);
+    clockTimer = null;
+    $("clock").textContent = "--:--";
+    return;
+  }
+  const serverMs = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) - 9 * 3600 * 1000;
+  clockOffsetMs = serverMs - Date.now();
+  drawClock();
+  if (!clockTimer) clockTimer = setInterval(drawClock, 1000);
+}
+function drawClock() {
+  if (clockOffsetMs === null) return;
+  const t = new Date(Date.now() + clockOffsetMs + 9 * 3600 * 1000);
+  const p = (n) => String(n).padStart(2, "0");
+  $("clock").textContent = (t.getUTCMonth() + 1) + "/" + t.getUTCDate() + "(" + WEEK[t.getUTCDay()] + ") " + p(t.getUTCHours()) + ":" + p(t.getUTCMinutes());
+}
+
+// ---- エアコンカード（4節） ----
+function choiceButton(text, icon, pressed, cls, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.innerHTML = icon || "";
+  b.appendChild(document.createTextNode(text));
+  b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  if (cls) b.className = cls;
+  b.addEventListener("click", onClick);
+  return b;
+}
+function renderAc() {
+  if (!caps || !acShown) return;
+  const ac = acShown;
+  $("ac-card").classList.toggle("off", !ac.power);
+  const pw = $("ac-power");
+  pw.disabled = false;
+  pw.textContent = ac.power ? "運転中" : "停止中";
+  pw.insertAdjacentHTML("beforeend", POWER_ICON);
+  pw.setAttribute("aria-pressed", ac.power ? "true" : "false");
+
+  const box = $("ac-temp-box"), none = $("ac-temp-none");
+  const down = $("ac-temp-down"), up = $("ac-temp-up");
+  if (!caps.tempModes.includes(ac.mode)) {
+    box.hidden = true;
+    none.hidden = false;
+    none.textContent = label(MODE_LABEL, ac.mode) + "では温度を指定できません";
+  } else if (typeof ac.temp === "number") {
+    box.hidden = false;
+    none.hidden = true;
+    $("ac-temp").textContent = ac.temp + "℃";
+    down.disabled = ac.temp - caps.tempStep < caps.tempMin;
+    up.disabled = ac.temp + caps.tempStep > caps.tempMax;
+  } else {
+    box.hidden = false;
+    none.hidden = true;
+    $("ac-temp").textContent = "--℃";
+    down.disabled = true;
+    up.disabled = true;
+  }
+
+  const modes = $("ac-modes");
+  modes.textContent = "";
+  modes.appendChild(Object.assign(document.createElement("span"), { className: "lab", textContent: "モード" }));
+  for (const m of caps.modes) {
+    modes.appendChild(choiceButton(label(MODE_LABEL, m), MODE_ICON[m], m === ac.mode, "m-" + m, () => sendAcPatch({ mode: m })));
+  }
+  const fan = $("ac-fan");
+  fan.textContent = "";
+  fan.appendChild(Object.assign(document.createElement("span"), { className: "lab", textContent: "風量" }));
+  let bars = 0;
+  for (const f of caps.fan) {
+    const icon = f === "auto" ? FAN_AUTO_ICON : fanBarsIcon(++bars);
+    fan.appendChild(choiceButton(label(FAN_LABEL, f), icon, f === ac.fan, "", () => sendAcPatch({ fan: f })));
+  }
+}
+
+// 4.3 の仮の書き換え
+function applyPatchLocal(shown, patch) {
+  const s = Object.assign({}, shown);
+  if ("power" in patch) s.power = patch.power;
+  if ("mode" in patch) { s.mode = patch.mode; s.temp = null; }
+  if ("temp" in patch) s.temp = patch.temp;
+  if ("fan" in patch) s.fan = patch.fan;
+  return s;
+}
+function sameKeys(a, b) {
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every((k) => kb.includes(k));
+}
+function sendAcPatch(patch) {
+  if (!acShown) return;
+  acShown = applyPatchLocal(acShown, patch);
+  renderAc();
+  if (!acInFlight) {
+    acInFlight = true;
+    acQueue = [patch];
+    flushAc();
+    return;
+  }
+  const last = acQueue[acQueue.length - 1];
+  if (last && sameKeys(last, patch)) acQueue[acQueue.length - 1] = patch;
+  else acQueue.push(patch);
+}
+async function flushAc() {
+  const patch = acQueue.shift();
+  const r = await api("POST", "/api/ac", patch);
+  if (r.status === 200 && r.data && r.data.ac) {
+    let shown = r.data.ac;
+    for (const p of acQueue) shown = applyPatchLocal(shown, p);
+    acShown = shown;
+    renderAc();
+    if (!("power" in patch) && r.data.ac.power === false) {
+      setMsg("ac-msg", "停止中のため設定だけ変えました（運転を押すとまとめて送ります）", false, true);
+    } else if ($("ac-msg").classList.contains("err")) {
+      setMsg("ac-msg", "", false, false);
+    }
+    if (acQueue.length > 0) { flushAc(); return; }
+    acInFlight = false;
+    return;
+  }
+  acQueue = [];
+  acInFlight = false;
+  setMsg("ac-msg", errorText(r, "送れませんでした"), true, false);
+  pollStatus();
+}
+
+$("ac-power").addEventListener("click", () => { if (acShown) sendAcPatch({ power: !acShown.power }); });
+$("ac-temp-up").addEventListener("click", () => {
+  if (acShown && typeof acShown.temp === "number" && !$("ac-temp-up").disabled) sendAcPatch({ temp: acShown.temp + caps.tempStep });
+});
+$("ac-temp-down").addEventListener("click", () => {
+  if (acShown && typeof acShown.temp === "number" && !$("ac-temp-down").disabled) sendAcPatch({ temp: acShown.temp - caps.tempStep });
+});
+
+// ---- スケジュールカード（6節） ----
+function daysText(days) {
+  const set = new Set(days);
+  const has = (list) => list.length === set.size && list.every((d) => set.has(d));
+  if (set.size === 7) return "毎日";
+  if (has(["mon","tue","wed","thu","fri"])) return "平日";
+  if (has(["sat","sun"])) return "土日";
+  return DAYS.filter(([k]) => set.has(k)).map(([, j]) => j).join("・");
+}
+function actionText(s) {
+  const a = s.action || {};
+  if (a.power === false) return "エアコン 停止";
+  let t = "エアコン 運転";
+  if ("mode" in a) t += " " + label(MODE_LABEL, a.mode);
+  if ("temp" in a) t += " " + a.temp + "℃";
+  if ("fan" in a) t += " 風量" + label(FAN_LABEL, a.fan);
+  return t;
+}
+function smallButton(text, onClick, pressed) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = text;
+  if (pressed !== undefined) b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  b.addEventListener("click", onClick);
+  return b;
+}
+function renderSchedules() {
+  const list = $("sched-list");
+  const items = schedState.schedules;
+  list.textContent = "";
+  $("sched-count").textContent = items.length + "/" + schedState.max + "件";
+  if (items.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "スケジュールはありません";
+    list.appendChild(li);
+  }
+  for (const s of items) {
+    const li = document.createElement("li");
+    if (!s.enabled) li.className = "disabled";
+    const desc = document.createElement("div");
+    desc.className = "desc";
+    const t = document.createElement("span");
+    t.className = "t";
+    t.textContent = s.time;
+    desc.appendChild(t);
+    desc.appendChild(document.createTextNode(daysText(s.days || []) + "  " + actionText(s)));
+    li.appendChild(desc);
+    const btns = document.createElement("div");
+    btns.className = "btns";
+    btns.appendChild(smallButton(s.enabled ? "有効" : "無効", () => toggleSchedule(s.id), s.enabled));
+    btns.appendChild(smallButton("編集", () => openForm(s)));
+    btns.appendChild(smallButton("削除", () => deleteSchedule(s.id)));
+    li.appendChild(btns);
+    list.appendChild(li);
+  }
+  updateSchedButtons();
+}
+function updateSchedButtons() {
+  const full = schedLoaded && schedState.schedules.length >= schedState.max;
+  // D-05 6.2：一覧を受け取るまでは max=0 なので押せない（受け取る前の PUT で一覧を消さない）
+  $("sched-add").disabled = schedBusy || formOpen || !schedLoaded || full;
+  const note = $("sched-max-note");
+  note.hidden = !full;
+  note.textContent = schedLoaded ? "上限 " + schedState.max + " 件" : "";
+  for (const b of $("sched-list").querySelectorAll("button")) b.disabled = schedBusy || formOpen;
+  // 受け取る前は件数が分からず 4. の確認を出せない（黙って置き換えうる）ので、追加と同じく押せなくする
+  $("sched-import").disabled = schedBusy || !schedLoaded;
+  $("sf-save").disabled = schedBusy || !anyDayChecked();
+}
+function setSchedBusy(v) {
+  schedBusy = v;
+  updateSchedButtons();
+}
+async function putSchedules(list, onErr) {
+  setSchedBusy(true);
+  const r = await api("PUT", "/api/schedules", { schedules: list });
+  setSchedBusy(false);
+  if (r.status === 200 && r.data && Array.isArray(r.data.schedules)) {
+    schedState = r.data;
+    schedLoaded = true;
+    renderSchedules();
+    return true;
+  }
+  onErr(errorText(r, "保存できませんでした"));
+  renderSchedules();
+  return false;
+}
+async function loadSchedules() {
+  const r = await api("GET", "/api/schedules");
+  if (r.status === 200 && r.data && Array.isArray(r.data.schedules)) {
+    schedState = r.data;
+    schedLoaded = true;
+    renderSchedules();
+  }
+}
+function toggleSchedule(id) {
+  const list = schedState.schedules.map((s) => (s.id === id ? Object.assign({}, s, { enabled: !s.enabled }) : s));
+  putSchedules(list, (t) => setMsg("sched-msg", t, true, false)).then((ok) => { if (ok) clearErr("sched-msg"); });
+}
+function deleteSchedule(id) {
+  if (!confirm("この予定を削除しますか？")) return;
+  const list = schedState.schedules.filter((s) => s.id !== id);
+  putSchedules(list, (t) => setMsg("sched-msg", t, true, false)).then((ok) => { if (ok) clearErr("sched-msg"); });
+}
+function clearErr(id) {
+  if ($(id).classList.contains("err")) setMsg(id, "", false, false);
+}
+
+// フォーム（6.3）
+function fillSelect(sel, values, textOf, current) {
+  sel.textContent = "";
+  sel.appendChild(new Option("指定しない", ""));
+  for (const v of values) sel.appendChild(new Option(textOf(v), String(v)));
+  if (current !== undefined && current !== null) {
+    const cur = String(current);
+    if (!values.map(String).includes(cur)) sel.appendChild(new Option(textOf(current) + "（使えない値）", cur));
+    sel.value = cur;
+  } else {
+    sel.value = "";
+  }
+}
+function tempValues() {
+  const v = [];
+  if (!caps || !(caps.tempStep > 0)) return v;
+  for (let t = caps.tempMin; t <= caps.tempMax; t += caps.tempStep) v.push(t);
+  return v;
+}
+function anyDayChecked() {
+  return DAYS.some(([k]) => { const el = $("sf-day-" + k); return el && el.checked; });
+}
+function updateTempSelect() {
+  const mode = $("sf-mode").value;
+  const ok = mode !== "" && caps && caps.tempModes.includes(mode);
+  const sel = $("sf-temp");
+  sel.disabled = !ok;
+  if (!ok) sel.value = "";
+}
+function updateTargetFields() {
+  $("sf-ac-fields").hidden = !$("sf-target-acon").checked;
+}
+function buildDays() {
+  const box = $("sf-days");
+  box.textContent = "";
+  for (const [k, j] of DAYS) {
+    const lab = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "sf-day-" + k;
+    cb.addEventListener("change", updateSchedButtons);
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(j));
+    box.appendChild(lab);
+  }
+}
+function openForm(s) {
+  if (!caps) { setMsg("sched-msg", "状態を読み込めていません", true, false); return; }
+  editingId = s ? s.id : null;
+  const a = s ? (s.action || {}) : { power: true };
+  $("sf-time").value = s ? s.time : "07:00";
+  const days = s ? new Set(s.days || []) : new Set(DAYS.map(([k]) => k));
+  for (const [k] of DAYS) $("sf-day-" + k).checked = days.has(k);
+  $("sf-enabled").checked = s ? !!s.enabled : true;
+  const on = a.power !== false;
+  $("sf-target-acon").checked = on;
+  $("sf-target-acoff").checked = !on;
+  fillSelect($("sf-mode"), caps.modes, (m) => label(MODE_LABEL, m), on ? a.mode : undefined);
+  fillSelect($("sf-temp"), tempValues(), (t) => t + "℃", on ? a.temp : undefined);
+  fillSelect($("sf-fan"), caps.fan, (f) => label(FAN_LABEL, f), on ? a.fan : undefined);
+  updateTempSelect();
+  updateTargetFields();
+  setMsg("sf-msg", "", true, false);
+  formOpen = true;
+  $("sched-form").hidden = false;
+  updateSchedButtons();
+}
+function closeForm() {
+  formOpen = false;
+  editingId = null;
+  $("sched-form").hidden = true;
+  updateSchedButtons();
+}
+function formSchedule() {
+  const days = DAYS.filter(([k]) => $("sf-day-" + k).checked).map(([k]) => k);
+  let action;
+  if ($("sf-target-acon").checked) {
+    action = { power: true };
+    const m = $("sf-mode").value, t = $("sf-temp").value, f = $("sf-fan").value;
+    if (m !== "") action.mode = m;
+    if (t !== "" && !$("sf-temp").disabled) action.temp = Number(t);
+    if (f !== "") action.fan = f;
+  } else {
+    action = { power: false };
+  }
+  const s = { enabled: $("sf-enabled").checked, time: $("sf-time").value, days, target: "ac", action };
+  if (editingId !== null) s.id = editingId;
+  return s;
+}
+$("sf-mode").addEventListener("change", updateTempSelect);
+$("sf-target-acon").addEventListener("change", updateTargetFields);
+$("sf-target-acoff").addEventListener("change", updateTargetFields);
+$("sf-cancel").addEventListener("click", closeForm);
+$("sched-add").addEventListener("click", () => openForm(null));
+$("sched-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (schedBusy || !schedLoaded || !anyDayChecked()) return;
+  if (editingId !== null && !schedState.schedules.some((x) => x.id === editingId)) {
+    // 読み直しでこの件が無くなっていた（ほかの画面で削除された）。黙って捨てずに知らせる
+    setMsg("sf-msg", "この予定はほかの画面で削除されたため保存できません", true, false);
+    return;
+  }
+  const s = formSchedule();
+  const list = editingId === null
+    ? schedState.schedules.concat([s])
+    : schedState.schedules.map((x) => (x.id === editingId ? s : x));
+  const ok = await putSchedules(list, (t) => setMsg("sf-msg", t, true, false));
+  if (ok) { closeForm(); clearErr("sched-msg"); }
+});
+
+// エクスポート（6.5）
+function filenameFromDisposition(cd) {
+  const m = typeof cd === "string" ? cd.match(/filename="([^"]+)"/) : null;
+  return m ? m[1] : EXPORT_FALLBACK_NAME;
+}
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.hidden = true;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_MS);
+}
+async function exportSchedules() {
+  const btn = $("sched-export");
+  btn.disabled = true;
+  try {
+    const r = await fetchRaw("GET", "/api/schedules/export");
+    if (r.status === 0) { setMsg("sched-msg", errorText(r, ""), true, false); return; }
+    if (r.status === 200) {
+      let blob;
+      try {
+        blob = await r.res.blob();
+      } catch (e) {
+        r.done();
+        showConnError();
+        setMsg("sched-msg", errorText({ status: 0, data: null }, ""), true, false);
+        return;
+      }
+      r.done();
+      const filename = filenameFromDisposition(r.res.headers.get("Content-Disposition"));
+      saveBlob(blob, filename);
+      setMsg("sched-msg", "エクスポートしました：" + filename, false, true);
+      return;
+    }
+    let text;
+    try {
+      text = await r.res.text();
+    } catch (e) {
+      r.done();
+      showConnError();
+      setMsg("sched-msg", errorText({ status: 0, data: null }, ""), true, false);
+      return;
+    }
+    r.done();
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) { data = null; }
+    setMsg("sched-msg", errorText({ status: r.status, data }, "エラー（HTTP " + r.status + "）"), true, false);
+  } finally {
+    btn.disabled = false;
+  }
+}
+$("sched-export").addEventListener("click", exportSchedules);
+
+// インポート（6.6）
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(fr.error);
+    fr.readAsText(file, "utf-8");
+  });
+}
+async function importFile(file) {
+  if (!schedLoaded) return;
+  if (file.size > IMPORT_MAX_BYTES) { setMsg("sched-msg", "ファイルが大きすぎます", true, false); return; }
+  const n = schedState.schedules.length;
+  if (n > 0 && !confirm("今のスケジュール（" + n + "件）をファイルの内容で置き換えます。よろしいですか？")) return;
+  let text;
+  try { text = await readAsText(file); } catch (e) { setMsg("sched-msg", "ファイルを読めませんでした", true, false); return; }
+  setSchedBusy(true);
+  const r = await api("POST", "/api/schedules/import", text);
+  setSchedBusy(false);
+  if (r.status === 200 && r.data && Array.isArray(r.data.schedules)) {
+    schedState = r.data;
+    schedLoaded = true;
+    renderSchedules();
+    setMsg("sched-msg", schedState.schedules.length + "件を読み込みました", false, true);
+    return;
+  }
+  setMsg("sched-msg", errorText(r, "読み込めませんでした"), true, false);
+}
+$("sched-import").addEventListener("click", () => $("sched-file").click());
+$("sched-file").addEventListener("change", async () => {
+  const input = $("sched-file");
+  const file = input.files && input.files[0];
+  if (file) { try { await importFile(file); } finally { input.value = ""; } }
+});
+
+// ---- 起動 ----
+$("conn-error").addEventListener("click", pollStatus);
+document.addEventListener("visibilitychange", async () => {
+  if (document.hidden) { clearTimeout(pollTimer); pollTimer = null; return; }
+  await pollStatus();
+  // D-05 7節：見える状態に戻ったら一覧も読み直す（フォームを開いていても読む）。
+  // PUT・import の送信中だけは読まない：古い GET の応答が送信後の一覧を上書きしないように。
+  if (!schedBusy) await loadSchedules();
+});
+buildDays();
+renderSchedules();
+(async () => {
+  await pollStatus();
+  await loadSchedules();
+})();
+</script>
+</body>
+</html>
