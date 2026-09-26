@@ -155,3 +155,5 @@
 - 2026-09-26T12:36:44+09:00 START I-01 attempt=1
 - 2026-09-26T13:04:25+09:00 DONE I-01 attempts=1
 - 2026-09-26T16:53:58+09:00 RESOLVE H-0 pass 人が実機で確認して pass（TC-H01：ESP32 に書き込み、pio device monitor で 'irhub phase0 tick' が1秒ごとに出る）
+- 2026-09-26T17:32:41+09:00 START I-HW1 attempt=1
+- 2026-09-26T17:34:57+09:00 DONE I-HW1 attempts=1
