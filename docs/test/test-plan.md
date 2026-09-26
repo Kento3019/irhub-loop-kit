@@ -14,9 +14,9 @@
 |---|---|---|---|---|
 | native 単体テスト（Unity） | `pio test -e native` | `test/test_ac_state/`（`AcModel`・`cap::`・文字列変換） | T-02 | TC-N01〜TC-N34 |
 | 〃 | 〃 | `test/test_schedule/`（スケジュールの純関数・`ScheduleList`・`schedule_json`・`Hub` のスケジュール実行） | T-03 | TC-N35〜TC-N129、TC-N182、TC-N183 |
-| 〃 | 〃 | `test/test_api/`（`Hub` の基本動作・`ApiRouter`） | T-04 | TC-N130〜TC-N181、TC-N184 |
-| 実機（人が行う） | 手順どおりに操作して目で確かめる | この文書の「テストケース（実機）」 | H-0〜H-6 のゲートで人が使う | TC-H01〜TC-H49、TC-H60、TC-H61、TC-H64〜TC-H66 |
-| PC とモック（人が行う） | `python tools/mock_server.py`、`python tools/embed_html.py` | 同上 | I-04 の後、H-4 の前に人が行う | TC-H50〜TC-H59、TC-H62、TC-H63、TC-H67 |
+| 〃 | 〃 | `test/test_api/`（`Hub` の基本動作・`ApiRouter`） | T-04 | TC-N130〜TC-N181、TC-N184〜TC-N193 |
+| 実機（人が行う） | 手順どおりに操作して目で確かめる | この文書の「テストケース（実機）」 | H-0〜H-6 のゲートで人が使う | TC-H01〜TC-H49、TC-H60、TC-H61、TC-H64〜TC-H66、TC-H68〜TC-H70、TC-H75 |
+| PC とモック（人が行う） | `python tools/mock_server.py`、`python tools/embed_html.py` | 同上 | I-04 の後、H-4 の前に人が行う | TC-H50〜TC-H59、TC-H62、TC-H63、TC-H67、TC-H71〜TC-H74 |
 
 - `Hub` を使うテストの置き場所（D-02 テスト観点で「T-01 で決める」とされた点）：`Hub::applyAc`・`Hub::pressLight`・コンストラクタ（N-BOOT）・センサー周期（F5）は `test/test_api/`、`Hub::tick` のスケジュール実行と `Hub::replaceSchedules` は `test/test_schedule/` に置く。
 - N-WIFI（`src/wifi_manager`）、D-06 の `src/` の処理、画面（`web/index.html`）は native テストの対象外（D-01 1節・D-05・D-06 のテスト観点）。実機ケースと PC ケースで確かめる。
@@ -83,7 +83,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N05 | [F1] | 生成直後 | `apply({fan=High})` | `None`。`fan=High`、他は変わらない。`settingsFor(Cool).fan=High` |
 | TC-N06 | [F1] | 生成直後 | `apply({swingV=Auto})` | `None`。`swingV=Auto`、他は変わらない |
 | TC-N07 | [F1] | 生成直後。`cap::kSwingHChoices` のうち `cap::kSwingHDefault` と違う値 h を探す（無ければ `TEST_IGNORE_MESSAGE`。今の仮値は `Off` だけなので飛ぶ） | `apply({swingH=h})` | `None`。`swingH=h`、他は変わらない |
-| TC-N08 | [F1] [F2] | 生成直後 | D-02 4節の遷移例の表の10行を上から順に `apply` | 各行の後で、結果（None／TempOutOfRange／EmptyPatch）、状態（power, mode, temp, fan）、`settingsFor` の変化が表どおり。最後の状態は `false, Heat, 18, High` |
+| TC-N08 | [F1] [F2] | 生成直後 | D-02 4節の遷移例の表の14行を上から順に `apply`（`{"temp":31}` の行は `kTempMaxC+1` で作る） | 各行の後で、結果（上から None×6、TempOutOfRange×2、None×5、EmptyPatch）、状態（power, mode, temp, fan）、`settingsFor` の変化が表どおり。停止中の2行（`{"temp":19}`→`false, Heat, 19, High`、`{"mode":"cool","fan":"low"}`→`false, Cool, 27, Low`、`settingsFor(Cool).fan=Low`）も運転中と同じに更新される。最後の状態は `true, Cool, 27, Low`（「送信」欄は `AcModel` では確かめない。TC-N191） |
 | TC-N09 | [F2] | `apply({power=true})`、`apply({tempC=27})` | `apply({mode=Heat})` の後 `apply({mode=Cool})` | 暖房にしたとき `tempC=20`、冷房に戻したとき `tempC=27` |
 | TC-N10 | [F2] | `apply({mode=Heat})` | `apply({fan=High})` の後 `apply({mode=Cool})` | 冷房の `fan=Auto`（暖房の High が漏れない）。`settingsFor(Heat).fan=High` |
 | TC-N11 | [F1] [F2] | 生成直後（冷房） | `apply({mode=Heat, tempC=18})` | `None`。`mode=Heat`、`tempC=18`。`settingsFor(Heat).tempC=18`、`settingsFor(Cool).tempC=26` のまま |
@@ -100,7 +100,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N22 | [F1] | 生成直後 | `apply({tempC=cap::kTempMaxC+1, fan=選択肢外})` | `TempOutOfRange`（検証の順：温度が風量より先） |
 | TC-N23 | [F1] [F2] | `cap::tempSupported(m)` が false のモード m（無ければ IGNORE） | `apply({mode=m, tempC=cap::kTempMinC})` | `TempNotSupported`、モードは Cool のまま |
 | TC-N24 | [F1] [F2] | TC-N23 と同じ m（無ければ IGNORE） | `apply({mode=m})` | `None`、`hasTemp=false`、`tempC` は `settingsFor(m).tempC`（初期値） |
-| TC-N25 | [F1] | 生成直後（`power=false`） | `apply({tempC=24})` | `None`、`tempC=24`、`power=false` のまま |
+| TC-N25 | [F1] | 生成直後（`power=false`） | `apply({tempC=24})` → `apply({mode=Heat})` → `apply({fan=High})` | 3回とも `None`、`power=false` のまま。1回目の後 `tempC=24`・`settingsFor(Cool).tempC=24`。2回目の後 `mode=Heat`・`tempC=20`。3回目の後 `fan=High`・`settingsFor(Heat).fan=High`・`settingsFor(Cool).fan=Auto`（停止中も運転中と同じ規則で状態とモード別の記憶が更新される。D-02 4節） |
 | TC-N26 | [F1] | 生成直後（冷房） | `apply({mode=Cool})` | `None`、状態は TC-N01 と全項目同じ |
 | TC-N27 | [F1] | 生成直後 | `validate({tempC=27})` | `None`。`state().tempC=26` のまま（validate は状態を変えない） |
 | TC-N28 | [F1] | — | `auto` `cool` `dry` `heat` を `parseAcMode` → `toString` | 4つとも元の文字列に戻る。`parseAcMode("cool")==Cool` |
@@ -257,12 +257,20 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N132 | [F5] | 生成直後 | `tick(0)`、`tick(29999)`、`tick(30000)` | `readCount` が 1、1、2（初回は即読む、`kClimateIntervalMs`=30000） |
 | TC-N133 | [F5] | 生成直後 | `tick(0xFFFFFFF0)`、`tick(0x0000751F)`、`tick(0x00007520)` | `readCount` が 1、1、2（差 29999 では読まず 30000 で読む） |
 | TC-N134 | [F5] | `tick(0)` で `{true, 24.5, 55.0}` を読ませる | `next={false,0,0}` にして `tick(30000)` | `lastClimate().valid=false` |
-| TC-N135 | [F1] | 生成直後 | `applyAc({tempC=27}, &err)` | true、`acCount=1`。`lastAc` の全7項目が `acState()` と一致（`power=false, mode=Cool, hasTemp=true, tempC=27, fan=Auto, swingV=Off, swingH=Off`） |
+| TC-N135 | [F1] | 運転中：生成直後に `applyAc({power=true}, &err)`（`acCount=1`） | `applyAc({tempC=27}, &err)` | true、`acCount=2`。`lastAc` の全7項目が `acState()` と一致（`power=true, mode=Cool, hasTemp=true, tempC=27, fan=Auto, swingV=Off, swingH=Off`。変えていない項目も入っている） |
 | TC-N136 | [F1] | 生成直後 | `applyAc({tempC=cap::kTempMaxC+1}, &err)` | false、`err="temp out of range"`、`acCount=0`、`acState()` は初期値のまま |
-| TC-N137 | [F1] | `ir.acResult=false` | `applyAc({tempC=27}, &err)` | true、`acCount=1`、`acState().tempC=27`（戻さない） |
-| TC-N138 | [F1] | 生成直後（冷房） | `applyAc({mode=Cool}, &err)` | true、`acCount=1` |
+| TC-N137 | [F1] | 生成直後に `applyAc({power=true}, &err)`（`acCount=1`）、その後 `ir.acResult=false` | `applyAc({tempC=27}, &err)` | true、`acCount=2`、`acState().tempC=27`（戻さない） |
+| TC-N138 | [F1] | 運転中：生成直後（冷房）に `applyAc({power=true}, &err)`（`acCount=1`） | `applyAc({mode=Cool}, &err)` | true、`acCount=2`（運転中は同じ値のパッチでも送信1回） |
 | TC-N139 | [F3] | 生成直後 | `pressLight(Night)`。続けて `ir.lightResult=false` にして `pressLight(Full)` | 1回目：true、`lightCount=1`、`lastLight=Night`。2回目：false、`lightCount=2`、`lastLight=Full` |
 | TC-N140 | [F3] | — | `parseLightButton` に `power` `night` `brighter` `dimmer` `full` `half`、`on` `Power` `""` | 6つは `Power`〜`Half` になり `toString` で元に戻る。`on`・`Power`・`""` は `nullopt` |
+| TC-N185 | [F1] | 生成直後（`power=false`）。`cap::kSwingVChoices` のうち `kSwingVDefault` と違う値 v を探す（今は Auto。無ければ4回目を省く） | `applyAc({mode=Heat})`、`applyAc({tempC=27})`、`applyAc({fan=High})`、`applyAc({swingV=v})` を順に | 4回とも true。毎回の後で `acCount=0`（停止中に power を含まないパッチは送らない。D-02 6節）。最後の `acState()` が `power=false, mode=Heat, hasTemp=true, tempC=27, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（今は Off） |
+| TC-N186 | [F1] | TC-N185 の4回の後 | `applyAc({power=true})` | true、`acCount=1`。`lastAc` が `power=true, mode=Heat, hasTemp=true, tempC=27, fan=High, swingV=v（Auto）, swingH=cap::kSwingHDefault`（今は Off。停止中の変更がまとめて送られる）で、`acState()` と全7項目一致 |
+| TC-N187 | [F1] [F2] | 生成直後（`power=false`） | `applyAc({mode=Heat})` → `({tempC=27})` → `({fan=High})` → `({mode=Cool})` → `({mode=Heat})` | 5回とも true、`acCount=0` のまま。4回目の後 `acState()` が `mode=Cool, tempC=26, fan=Auto`、5回目の後 `mode=Heat, tempC=27, fan=High`（停止中の変更がモード別の記憶に入っている。`Hub` に `settingsFor` が無いのでモード切替で確かめる：設計の不足9） |
+| TC-N188 | [F1] | 生成直後（`power=false`） | `applyAc({power=false})` → `applyAc({power=false, tempC=24})` | 1回目：true、`acCount=1`、`lastAc` が `power=false, mode=Cool, tempC=26, fan=Auto`（今と同じ値でも power を含むので送る）。2回目：true、`acCount=2`、`lastAc.power=false`、`lastAc.tempC=24` |
+| TC-N189 | [F1] | 生成直後に `applyAc({power=true})`（`acCount=1`） | `applyAc({power=false})` → `applyAc({tempC=25})` | 1回目：true、`acCount=2`、`lastAc.power=false`。2回目：true、`acCount=2` のまま、`acState().tempC=25`、`lastAc.tempC=26`（停止にした後の変更は送らない） |
+| TC-N190 | [F1] | 生成直後に `applyAc({power=true})`（`acCount=1`） | `applyAc({tempC=cap::kTempMaxC+1}, &err)`（今は 31） | false、`err="temp out of range"`、`acCount=1` のまま、`acState()` が `power=true, mode=Cool, tempC=26, fan=Auto`（運転中の失敗も送信 0 回。停止中の失敗は TC-N136） |
+| TC-N193 | [F1] | 生成直後（`power=false`、`acCount=0`） | `applyAc({power=true, tempC=cap::kTempMaxC+1}, &err)`（今は 31） | false、`err="temp out of range"`、`acCount=0` のまま、`acState()` が `power=false, mode=Cool, tempC=26, fan=Auto`（停止中でも power を含むパッチの検証失敗は送信 0 回・状態不変。D-02 6節） |
+| TC-N191 | [F1] [F2] | 生成直後 | D-02 4節の遷移例の表の14行を上から順に `applyAc`（`{"temp":31}` の行は `kTempMaxC+1`）。各行の前後で `acCount` の差を取る | 差が上から `1,1,1,1,1,1,0,0,1,0,0,1,1,0`（表の「送信」欄どおり）、最後の `acCount=9`。最後の `lastAc` が `power=true, mode=Cool, tempC=27, fan=Low` |
 
 #### C-2. ルーティング
 
@@ -289,7 +297,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 
 | ID | 要件 | 前提 | 操作 | 期待結果 |
 |---|---|---|---|---|
-| TC-N152 | [F1] [API] | 生成直後 | `POST /api/ac {"temp":27}` | 200、`ac.temp=27`、他の5項目は初期値。`acCount=1`、`lastAc` が `acState()` と一致 |
+| TC-N152 | [F1] [API] | 生成直後に `POST /api/ac {"power":true}`（`acCount=1`） | `POST /api/ac {"temp":27}` | 200、`ac.power=true`、`ac.temp=27`、`mode`・`fan`・`swingV`・`swingH` は初期値。`acCount=2`、`lastAc` が `acState()` と一致 |
 | TC-N153 | [F1] | 生成直後 | `{"power":true,"mode":"cool","temp":26,"fan":"auto","swingV":"auto","swingH":"off"}` | 200、応答の `ac` が送った6項目と同じ値 |
 | TC-N154 | [F1] [F2] | `{"temp":27}` を送った後 | `{"mode":"heat"}` → `{"mode":"cool"}` | 1回目 `ac.mode="heat"`、`ac.temp=20`。2回目 `ac.mode="cool"`、`ac.temp=27` |
 | TC-N155 | [F1] [API] | 生成直後 | `{"temp":26.5}`、`{"temp":"26"}`、`{"temp":null}`、`{"temp":true}` | 4つとも 400、`{"error":"temp: must be integer"}` |
@@ -300,8 +308,9 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N160 | [F1] | 生成直後 | TC-N155〜N159 の要求を全部送る | `acCount=0`、`acState()` 初期値のまま |
 | TC-N161 | [API] | 生成直後 | `{"x":1,"temp":"a"}`、`{"fan":"turbo","temp":"a"}` | `unknown key "x"`（知らないキーが先）、`temp: must be integer`（power, mode, temp, fan … の順） |
 | TC-N162 | [API] | 生成直後 | 本文 `""`、`[1]`、`"x"`、`{"temp":` | 4つとも 400、`invalid json` |
-| TC-N163 | [API] | 生成直後 | `{"temp":27}` を空白で 512 バイトにしたもの、513 バイトにしたもの | 512：200、`ac.temp=27`。513：400、`body too large`、`acCount` は 1 のまま |
-| TC-N164 | [F1] | `ir.acResult=false` | `{"temp":27}` | 200、`ac.temp=27` |
+| TC-N163 | [API] | 生成直後に `POST /api/ac {"power":true}`（`acCount=1`） | `{"temp":27}` を空白で 512 バイトにしたもの、513 バイトにしたもの | 512：200、`ac.temp=27`、`acCount=2`。513：400、`body too large`、`acCount` は 2 のまま |
+| TC-N164 | [F1] | 生成直後に `POST /api/ac {"power":true}`（`acCount=1`）、その後 `ir.acResult=false` | `POST /api/ac {"temp":27}` | 200、`ac.power=true`、`ac.temp=27`、`acCount=2`（sendAc が呼ばれ false を返しても 200） |
+| TC-N192 | [F1] [API] | 生成直後（`power=false`） | `POST /api/ac {"temp":27}` → `POST /api/ac {"power":true}` | 1回目：200、`ac.power=false`、`ac.temp=27`、`acCount=0`（停止中は状態だけ変えて送らない。応答の形は運転中と同じ）。2回目：200、`ac.power=true`、`ac.temp=27`、`acCount=1`、`lastAc.power=true`、`lastAc.tempC=27` |
 
 #### C-5. POST /api/light
 
@@ -376,9 +385,11 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-H12 | [F1] | TC-H11 の後 | `{"temp":27}` → `{"power":false}` | 1回目でエアコンの表示が 27℃、2回目で停止する。どちらも応答 200 |
 | TC-H13 | [F1] | 運転中、風向を控える | `{"temp":26}`、`{"temp":27}`、`{"temp":26}` を 5 秒おきに | 温度だけが変わり、上下風向が3回とも変わらない |
 | TC-H14 | [F3] [HW-PINS] | 照明を消しておく | `/api/light` に `power`→`full`→`half`→`dimmer`→`brighter`→`night`→`power` を 3 秒おきに | 毎回応答 200 `{"ok":true}`。照明が 点灯→全灯→半灯→暗く→明るく→常夜灯→消灯 と、リモコンの同じボタンと同じに動く |
-| TC-H15 | [F1] [F3] | ESP32 を実際の設置場所に置く | TC-H12 の2回と照明 `power` を、それぞれ3回ずつ | エアコン・照明とも 3回中3回反応する（設置場所から両方に届く） |
+| TC-H15 | [F1] [F3] | ESP32 を実際の設置場所に置く。エアコンと照明を止めておく | エアコン：`{"power":true,"mode":"cool","temp":26}` → 10 秒後に `{"power":false}` を1組として、10 秒おきに3組（送信は計6回。どちらも power を含むので毎回送る）。照明：`/api/light` に `power` を 10 秒おきに6回 | エアコン：6回の送信のうち6回反応する（運転開始・停止を3回ずつ繰り返し、最後は停止）。照明：6回のうち6回反応する（点灯・消灯を3回ずつ繰り返し、最後は消灯）。応答はすべて 200（設置場所から両方に届く） |
 | TC-H16 | [F2] | 運転中（冷房） | `{"mode":"heat"}` → `{"mode":"dry"}` → `{"mode":"auto"}` | 暖房 20℃、除湿（温度表示があれば 26℃）、自動で動く。除湿で温度が効いたか・自動の温度を控えて `/decide D2` |
 | TC-H17 | [F1] [API] | 運転中 | `{"temp":99}` | 応答 400 `{"error":"temp out of range"}`。LED が光らず、エアコンは変わらない |
+| TC-H68 | [F1] | エアコンと ESP32 がどちらも停止（例：TC-H12 の後）。スマホのカメラで LED を映す | `{"mode":"heat"}` → `{"temp":24}` → `{"fan":"high"}` を 5 秒おきに → 5 秒後に `{"power":true}` → 確かめたら `{"power":false}` | 最初の3回：応答 200、応答の `ac.power` が false、`ac` がそれぞれ `mode="heat"`、`temp=24`、`fan="high"` になる。LED が光らず、エアコンの受信音が鳴らず、エアコンは停止したまま（停止中に power を含まない変更は送らない。D-02 6節）。`{"power":true}`：LED が1回光り、エアコンが暖房・24℃・風量 強で運転を始める（停止中に変えた設定がまとめて届く）。最後の `{"power":false}` で停止する |
+| TC-H69 | [F1] [N-BOOT] | エアコンを `{"power":true,"mode":"cool","temp":26}` で運転させておく。LED をカメラで映す | ESP32 の EN ボタンでリセット → 30 秒待つ → `curl http://IP/api/status` → `{"temp":25}` → 10 秒待つ | `/api/status` の `ac.power` が false（N-STATE）。`{"temp":25}` の応答は 200・`ac.power=false`・`ac.temp=25`。LED が光らず、エアコンは冷房 26℃ で運転を続ける（止まらない。人の判断の理由：再起動後に温度だけ変えて停止信号が出ないこと） |
 
 ### フェーズ3（H-3）：温湿度
 
@@ -394,9 +405,10 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 |---|---|---|---|---|
 | TC-H21 | [UI] | スマホ（iOS Safari と Android Chrome）を家の Wi-Fi に | `http://IP/` を開く | 1ページに上から 上部バー（室温・湿度、時刻、NTP の状態）、エアコン、照明、スケジュールのカードが出る。日本語が化けない。題名が「IRハブ」。SwitchBot のロゴ・名称が無い |
 | TC-H22 | [F1] [UI] | TC-H21 の画面、エアコン停止 | 運転ボタン → モード4つを順に → ＋を上限まで → −を下限まで → 風量・風向の各ボタン → 運転ボタン | 毎回エアコンが画面どおりに動き、画面の表示も変わる。温度が上限（今は 30℃）で＋、下限（今は 16℃）で−が押せなくなる。最後に停止する |
+| TC-H70 | [F1] [UI] | TC-H21 の画面。エアコン停止（運転ボタンが「停止中」）。LED をカメラで映す | ＋を1回 → 5 秒後にモードの「暖房」→ 5 秒後に風量のボタンを今と違うもの1つ → 5 秒後に運転ボタン → 確かめたら運転ボタンでもう一度停止 | 最初の3回：押すたびに画面の表示が変えた値になり、`#ac-msg` に「停止中のため設定だけ変えました（運転を押すとまとめて送ります）」が出て約 3 秒で消える。LED が光らず、受信音が鳴らず、エアコンは停止したまま。運転ボタン：LED が1回光り、エアコンが画面の設定（暖房・画面の温度・選んだ風量）で運転を始める。このとき「停止中のため…」は出ない。最後の停止で止まる（D-05 のテスト観点 H-2） |
 | TC-H23 | [F3] [UI] | 同上 | 照明の6ボタンを1つずつ | 照明がリモコンと同じに動き、`送信しました：<表示名>` が 3 秒出る。点灯中かどうかの表示は無い |
 | TC-H24 | [F5] [UI] | 同上 | 室温・湿度を見る → DHT20 に息を 5 秒かける → 60 秒待つ | 小数1桁で表示される（例 `室温 24.5℃  湿度 55.2%`）。息をかけてから 60 秒以内に湿度の表示が上がる（センサー周期 30 秒＋画面の読み直し 30 秒の最悪値。D-05 の「30 秒以内」とは違う：設計の不足7） |
-| TC-H25 | [N-RESP] | スマホのスロー動画（240fps など）で、画面のボタンと LED を同時に映す | 照明ボタンを5回、エアコン＋を5回押す | 10回とも、指がボタンに触れたコマから LED が光り始めるコマまで 1.0 秒以内。＋の連打の後、エアコンは最後の温度になる |
+| TC-H25 | [N-RESP] | エアコンを運転中にしておく（停止中は＋で赤外線を送らない。D-02 6節）。スマホのスロー動画（240fps など）で、画面のボタンと LED を同時に映す | 照明ボタンを5回、エアコン＋を5回押す | 10回とも、指がボタンに触れたコマから LED が光り始めるコマまで 1.0 秒以内。＋の連打の後、エアコンは最後の温度になる |
 | TC-H26 | [N-TIME] [UI] | ルーターがインターネットにつながっている | リセットして 60 秒後に画面と `/api/status` を見る | `clock.synced=true`、`now` がスマホの時計と ±5 秒以内で `+09:00`。画面の時刻と曜日が合い、「時刻同期済み」。警告の帯が無い |
 | TC-H27 | [N-TIME] | ルーターの WAN 側を外す。LED をカメラで映す | リセットして画面を開く → スケジュールに 2 分後・毎日の照明 `full` を登録 → 予定の時刻を過ぎるまで待つ → WAN を戻し、シリアルに `[ntp] synced` が出るのを待つ | 未取得の間：上部に「時刻未取得のためスケジュールは実行されません」、`#clock` が `--:--`、予定の時刻に LED が光らない。`[ntp] synced` の後 30 秒以内に帯が消える |
 | TC-H28 | [N-AUTH] | 家の LAN の PC のブラウザ | `http://IP/` を開き、照明ボタンを1つ押す | ログインやパスワードの入力なしで画面が開き、照明が動く |
@@ -410,7 +422,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-H36 | [UI] | `web/index.html` の題名を一時的に1文字変える。別に `web/index.html` のコピーを取っておく | (1) `pio run -e esp32 -t upload` → 画面を再読み込み。(2) `include/secrets.h` を一時的に別名にして `pio run -e esp32`（終わったら戻す）。(3) `web/index.html` の途中に 0x00 のバイトを1つ入れて（例 `printf '\x00' >> web/index.html`）`pio run -e esp32` → 終了コードを `echo $?` で見る → 取っておいたコピーで元に戻して `pio run -e esp32` | (1) 変えた題名が出る（古い画面が残らない）。(2) ビルドが `#error` の「include/secrets.h がありません」で止まる。`git status` に `include/secrets.h` が出ない。(3) `embed_html.py` の検査（D-05 11節：0x00 を含む）に当たり、理由の1行が出て、コンパイルに進まずにビルドが失敗で止まる（PlatformIO の結果が `FAILED`、終了コードが 0 以外。D-05 11節 `sys.exit(1)` の要確認）。戻した後のビルドは成功する |
 | TC-H60 | [N-TIME] [F4] | TC-H26 のとおり同期済み（`clock.synced=true`）。今の時刻を T とし、T+3分・毎日の照明 `full` を1件登録。照明は消しておき、LED をカメラで映す | ルーターの WAN 側のケーブルを抜く（家の Wi-Fi は生かす）→ 1 分待って `GET http://IP/api/status` と画面を見る → T+4分まで待つ | WAN を抜いた後も `clock.synced=true`、`now` が進んでいる（スマホの時計と ±5 秒以内）。画面に警告の帯が出ない。T+3分に LED が1回光り、照明が全灯になる（同期後に NTP が途切れてもスケジュールが動く。D-06 5.2） |
 | TC-H61 | [N-TIME] [N-BOOT] [N-WIFI] | 同期済み（`clock.synced=true`）。シリアルを開く | ルーターの WAN 側のケーブルを抜く → ルーターの電源を切り、`[wifi] giving up, restart` と `[boot]` の行が出るのを待つ → WAN を抜いたままルーターの電源を戻す → `[wifi] connected` の後に `GET http://IP/api/status` と画面を見る → WAN を戻す | 再起動後（`ESP.restart()`、リセット理由 `ESP_RST_SW`）の `/api/status` が `clock.synced=false`、`clock.now=null`。画面に「時刻未取得のためスケジュールは実行されません」、`#clock` が `--:--`（前の起動の時刻を同期扱いにしない。D-06 5.2）。WAN を戻すと `[ntp] synced` が出て、その後 30 秒以内に帯が消える |
-| TC-H65 | [N-RESP] | TC-H25 と同じくスロー動画で画面のボタン・LED・シリアルモニタ（PC の画面）を同時に映す | (a) エアコンの＋を押し、すぐ（0.3 秒以内）に照明の `全灯` を押す、を3回。(b) 照明の `全灯` と `半灯` を 2 秒おきに交互に 70 秒押し続ける（その間に `[dht20]` の行が2回以上出る） | (a) 3回とも照明が全灯になる（送信が捨てられない）。照明の LED が光るのはエアコンの LED が消えた後。照明ボタンに触れてから照明の LED が光り始めるまでの時間を3回とも記録する（設計は「1 秒前後」で合否の値が無い：設計の不足8）。(b) すべての押下で、触れてから LED が光り始めるまで 1.0 秒以内（`[dht20]` の行が出た前後の押下も含む） |
+| TC-H65 | [N-RESP] | エアコンを運転中にしておく（D-02 6節）。TC-H25 と同じくスロー動画で画面のボタン・LED・シリアルモニタ（PC の画面）を同時に映す | (a) エアコンの＋を押し、すぐ（0.3 秒以内）に照明の `全灯` を押す、を3回。(b) 照明の `全灯` と `半灯` を 2 秒おきに交互に 70 秒押し続ける（その間に `[dht20]` の行が2回以上出る） | (a) 3回とも照明が全灯になる（送信が捨てられない）。照明の LED が光るのはエアコンの LED が消えた後。照明ボタンに触れてから照明の LED が光り始めるまでの時間を3回とも記録する（設計は「1 秒前後」で合否の値が無い：設計の不足8）。(b) すべての押下で、触れてから LED が光り始めるまで 1.0 秒以内（`[dht20]` の行が出た前後の押下も含む） |
 
 ### フェーズ5（H-5）：スケジュール
 
@@ -419,7 +431,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-H37 | [F4] | NTP 取得済み（帯が無い）。今の時刻を T とする | 画面で3件登録：T+2分 エアコン運転（暖房 20℃）、T+2分 照明 全灯、T+3分 エアコン停止。曜日は今日を含む | 一覧に3件が登録順で出る。T+2分の 0〜約1秒でエアコンが暖房 20℃ で動き、照明が全灯になる。T+3分でエアコンが止まる。LED はそれぞれの分で1回ずつ光り、同じ分に2回光らない。画面のエアコン表示も同じ状態になる |
 | TC-H38 | [F4] | TC-H37 の3件。エアコンは停止している。LED をカメラで映す。操作を始める時刻を U とし、以下の操作は1分以内に終える | 1件目（エアコン運転）を「編集」で U+2分・冷房 26℃ に変える。2件目（照明 全灯）を「削除」。3件目（エアコン停止）を「編集」で U+4分 に変えてから、有効の切替で無効にする。U+5分まで LED とエアコンを見る | 各操作の後に一覧が描き直る。削除した件は一覧から消え、3件目は無効の表示で U+4分 になっている。U+2分に LED が1回光り、エアコンが冷房 26℃ で運転を始める。U+4分〜U+5分に LED が光らず、エアコンは運転したまま（無効にした停止の件が送られない） |
 | TC-H39 | [F4-LIMIT] | 一覧を10件にする | 画面の追加ボタンを見る。続けて11件の本文で `curl -X PUT … /api/schedules` | 見出しが `10/10件`、追加ボタンが押せず「上限 10 件」。curl は 400 `{"error":"too many schedules (max 10)"}`、一覧は10件のまま |
-| TC-H40 | [F4-IO] | 3件以上登録済み、NTP 取得済み | iOS Safari と Android Chrome の両方で「エクスポート」を押す | ファイルが `irhub-schedules-YYYYMMDD-HHMM.json` の名前で保存される（画面に JSON が表示されるだけにならない）。中身に `"version": 1`、`exportedAt`（`+09:00`）、登録した件が id 付きである |
+| TC-H40 | [F4-IO] | 3件以上登録済み、NTP 取得済み | iOS Safari と Android Chrome のそれぞれで画面を開き「エクスポート」を押す（押した後はほかの操作をしない）→ 端末のファイル（iOS は「ファイル」アプリのダウンロード、Android は「ダウンロード」）を開く | 両方の端末で：「エクスポートしました：irhub-schedules-YYYYMMDD-HHMM.json」が約 3 秒出る。ページが移らず、画面に JSON の文字が表示されるだけにならない。ダウンロードに `irhub-schedules-YYYYMMDD-HHMM.json`（押した時刻の JST。画面の知らせと同じ名前）が1つ増える（応答を待った後の保存が止められない。D-05 6.5 の要確認。保存されなければ fail とし、止められたか・別名になったかを記録：設計の不足10）。中身に `"version": 1`、`exportedAt`（`+09:00`）、登録した件が id 付きである |
 | TC-H41 | [F4-IO] [N-STATE] | TC-H40 のファイル | EN ボタンでリセット → 画面を開く → 「インポート」で TC-H40 のファイルを選ぶ | リセット後の一覧は空。インポート後「<n>件を読み込みました」と出て、一覧が id を含めエクスポート前と同じになる |
 | TC-H42 | [F4-IO] | TC-H40 のファイルの `"version": 1` を `2` に書き換えたもの | インポートする | 「読み込めませんでした：unsupported version」。一覧は変わらない。同じファイルを続けてもう一度選べる |
 | TC-H43 | [N-BOOT] [F4] | 今の時刻を T とし、T+2分・毎日の照明 `full` の1件だけを登録してエクスポートしておく。LED をカメラで映す | T+2分の 20 秒前に EN ボタンでリセット → T+2分になってから 10 秒以上たった後（同じ分の中）に、エクスポートしたファイルをインポート → T+3分まで待つ | リセットから T+3分まで LED が一度も光らない（リセット直後は一覧が空。判定済みの分にインポートした予定はその分には送られない） |
@@ -429,10 +441,11 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | ID | 要件 | 前提 | 操作 | 期待結果（完成判定） |
 |---|---|---|---|---|
 | TC-H44 | [F6] | 手順0〜5 済み | Tailscale の管理画面で PC の Subnets を見る | 承認済みのルートが `<IP>/32` の1つだけ。`/24` などが無い |
+| TC-H75 | [F6] | 手順1a（Disable key expiry）済み | Tailscale の管理画面の Machines を開き、PC の行を見る。続けて PC の行のメニュー（…）を開いて項目を見て、何も選ばずに閉じる | PC の行に Expiry disabled と出る（表示の文言・位置は D-07 の要確認8。行に無ければ PC の詳細画面で鍵の期限の欄が無効になっていればよい）。メニューの項目が Enable key expiry（期限を戻す側）になっている。スマホの行は変えていない（期限の表示が残っていてよい） |
 | TC-H45 | [F6] [N-IP] | ESP32 の IP 固定（D-06 6節の方式A または B） | 方式A：ルーターの DHCP 予約一覧を見る。方式B：シリアルの `[wifi] static ip set` と `connected ip=` を見る | 方式A：`[wifi] mac` の MAC に IP が予約され、`connected ip=` と一致。方式B：`connected ip=` が `kStaticIp` と一致し、ルーターの自動割り当て範囲の外 |
 | TC-H64 | [F6] [N-IP] [N-WIFI] [N-TIME] | 方式B（`kUseStaticIp=true`）の場合だけ行う（方式A なら「対象外」と書いて ✓）。シリアルを開く | 起動後の `[wifi] connected ip=` を控える → ルーターの電源を切り、`attempt 2/3` が出たら戻す → 再起動せずに `[wifi] connected` が出たら `GET http://IP/api/status` | 再試行後の `connected ip=` が起動時と同じ `kStaticIp` の値。`clock.synced=true`（起動時に `[ntp] synced` が出ている＝DNS が効いている）。`http://IP/` が開ける（D-06 4.3 の要確認） |
 | TC-H66 | [F6] | 手順3（スリープしない設定）済み。変える前のスリープ時間を控えておく（例 30 分） | PC に触らずに、控えた時間より長く（例 1 時間）置く → スマホ（モバイル回線）で Tailscale の管理画面の Machines を開く → 続けて TC-H46 を行う | 管理画面の PC が Connected のまま。TC-H46 の期待結果を満たす（D-07 手順3の確認） |
-| TC-H46 | [F6] | スマホの Wi-Fi を切り（モバイル回線）、Tailscale アプリをオン | `http://IP/` を開き、エアコンの温度を 1℃ 変え、照明ボタンを1つ押す | 家の中と同じ画面が出て、室温・湿度・時刻が表示される。エアコンと照明が実際に動く（家にいる人、または家の中でモバイル回線で確かめる） |
+| TC-H46 | [F6] | エアコンを運転中にしておく（停止中は温度だけ変えても赤外線を送らない。D-02 6節）。スマホの Wi-Fi を切り（モバイル回線）、Tailscale アプリをオン | `http://IP/` を開き、エアコンの温度を 1℃ 変え、照明ボタンを1つ押す | 家の中と同じ画面が出て、室温・湿度・時刻が表示される。エアコンと照明が実際に動く（家にいる人、または家の中でモバイル回線で確かめる） |
 | TC-H47 | [F6] | TC-H46 と同じ状態 | ルーターの管理画面（例 `http://192.168.1.1/`）を開く。次に Tailscale アプリをオフにして `http://IP/` を開く | どちらも開けない（タイムアウト） |
 | TC-H48 | [F6] | PC を Windows からサインアウト（シャットダウンしない） | TC-H46 をもう一度行う | 画面が開き、操作が効く |
 | TC-H49 | [F6] [N-RESP] | TC-H46 の状態 | 照明ボタンを押す | 動く（外出先の遅れは N-RESP の1秒の対象外。D-06 疑問4。かかった時間を参考に記録） |
@@ -456,6 +469,10 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-H62 | [UI] [F1] [F2] | `tools/mock_server.py` の `acCapabilities.tempModes` から `dry` を外して起動（D-05 のテスト観点の手順） | エアコンのモードで「除湿」を押す → 「冷房」に戻す。次にスケジュールの「追加」でエアコン運転を選び、モードを除湿にする | 除湿のとき：`POST /api/ac` の応答の `ac.temp` が null、温度の欄（＋・−と数値）が隠れ、「このモードは温度を指定できません」が出る。冷房に戻すと温度の欄が戻り、「このモードは温度を指定できません」が消える。スケジュールのフォームで除湿を選ぶと温度の選択が押せない（`disabled`、値は「指定しない」） |
 | TC-H63 | [UI] [N-TIME] [F6] | オプションなし。モックの `/api/status` の `clock.now` を Network で見て控える（例 `2026-09-25T20:00:00+09:00`） | PC（OS）のタイムゾーンを UTC に変えてからブラウザを開き直して画面を開く。終わったら元に戻す | 上部バーの時刻が `clock.now` の JST の時刻と日付・曜日（例 `9/25(金) 20:00`。1 分以内の進みは可）で、UTC の `11:00` にならない（D-05：`getUTC*` と +9 時間で JST を出す） |
 | TC-H67 | [UI] [F5] | `--delay-ms 3000`（D-05 のテスト観点の手順）。開発ツールの Network を開き、Waterfall（時間の帯）を出しておく | 画面を開いて最初の読み込みが終わるのを待つ → 次の `GET /api/status` が出て応答待ち（保留中）の間、出てから 1 秒以内にタブを隠し、すぐ戻す。これを3回くり返す | 3回とも、`/api/status` の保留中の要求は同時に多くて1本（Waterfall で `/api/status` の帯が時間で重ならない）。タブを戻した時点で前の要求が応答待ちなら、戻したことで2本目の `/api/status` は出ない（D-05 4節 `statusInFlight`：送信中なら新しく投げない） |
+| TC-H71 | [UI] [F1] | オプションなし。画面の運転ボタンが「停止中」（運転中なら押して停止にする） | (1) ＋を1回、5 秒後にモードのボタン（今と違うもの）、5 秒後に風量のボタン（今と違うもの）。(2) 5 秒後に運転ボタン、続けて 5 秒後に＋。(3) モックを `--delay-ms 4000` で起動し直し、画面を開き直して運転ボタンが「停止中」であることを確かめる（運転中なら押して停止にし、応答を待つ）。＋を押し、その応答を待たずに（1 秒以内に）運転ボタンと＋を続けて押す | (1) 3回とも `POST /api/ac` の本文に `power` が無く（`{"temp":27}` など1項目）、200 の後に `#ac-msg` に「停止中のため設定だけ変えました（運転を押すとまとめて送ります）」が出て約 3 秒で消える。(2) 運転ボタン（本文 `{"power":true}`）と運転中の＋では出ない。(3) `POST /api/ac` が2本（2本目の本文に `power:true` と `temp` の両方）。1本目の応答（約 4 秒後）で知らせが出て、2本目の応答（約 8 秒後）の後には出ない。最後の表示が「運転中」 |
+| TC-H72 | [UI] [F4-IO] | オプションなし。スケジュールを2件登録。開発ツールの Network を開く。ブラウザのダウンロード先を控える | (1)「エクスポート」を押す。(2) モックを `--delay-ms 3000` で起動し直し、押してから応答までの間に「エクスポート」をもう一度押そうとする。(3) 一覧を0件にして押す。(4) モックを `--unsynced` で起動し直して押す | (1) `GET /api/schedules/export` が `fetch`（Network の種類が fetch）で1本出る。ページが移らず、ダウンロードに1つファイルが増え、その名前がモックの応答の `Content-Disposition` の `filename` と同じ。中身が応答の本文と同じ。`#sched-msg` に「エクスポートしました：<その名前>」が出て約 3 秒で消える。(2) 応答までの間「エクスポート」が押せず（`disabled`）、要求は1本だけ。応答の後は押せる。(3) 0件でも押せて保存され、中身の `schedules` が `[]`。(4) 保存名が `Content-Disposition` のとおり（D-04 の未取得時の名前は `irhub-schedules.json`。モックがそれを返すかは D-05 12節に無いので名前の一致だけを見る） |
+| TC-H73 | [UI] [F4-IO] | スケジュールを2件登録した画面 | (1) モックを止めて（Ctrl+C）「エクスポート」を押す。(2) モックを `--delay-ms 0` で起動し直して帯を押し、帯が消えたら（画面は開き直さない）モックを `--delay-ms 6000` で起動し直し、すぐに「エクスポート」を押す | (1) すぐに上部に「ESP32 に接続できません」の帯、`#sched-msg` に「送れませんでした（通信エラー）」。ファイルは保存されない。(2) 押してから約 5 秒で同じ帯と文言が出て、ファイルは保存されない。どちらも一覧の表示は2件のまま。モックを `--delay-ms 0` に戻して帯を押すと帯が消える |
+| TC-H74 | [UI] [F4-IO] | オプションなしで画面を開き、開発ツールのコンソールを開く | `filenameFromDisposition('attachment; filename="irhub-schedules-20260925-2000.json"')`、`filenameFromDisposition(null)`、`filenameFromDisposition('attachment')` を入力する | 順に `"irhub-schedules-20260925-2000.json"`、`"irhub-schedules.json"`、`"irhub-schedules.json"`（D-05 6.5） |
 
 ---
 
@@ -463,22 +480,22 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 
 | 要件 | native（TC-N） | 実機・PC（TC-H） |
 |---|---|---|
-| [F1] | N03〜N20、N22〜N34、N91、N92、N135〜N138、N146、N150、N152〜N161、N164 | H03〜H06、H08、H09、H11〜H13、H15、H17、H22、H50、H51、H62 |
-| [F2] | N01、N02、N08〜N11、N23、N24、N131、N145、N154 | H16、H62 |
+| [F1] | N03〜N20、N22〜N34、N91、N92、N135〜N138、N146、N150、N152〜N161、N164、N185〜N193 | H03〜H06、H08、H09、H11〜H13、H15、H17、H22、H50、H51、H62、H68〜H71 |
+| [F2] | N01、N02、N08〜N11、N23、N24、N131、N145、N154、N187、N191 | H16、H62 |
 | [F3] | N93、N139、N140、N165〜N167 | H07、H14、H15、H23 |
 | [F4] | N35〜N98、N102〜N104、N123、N127、N169〜N173、N179、N180、N184 | H37、H38、H43、H58、H60 |
 | [F4-LIMIT] | N69、N70、N105、N114、N169、N171 | H39、H58 |
-| [F4-IO] | N76、N77、N100、N101、N106〜N129、N174〜N178、N182〜N184 | H40〜H42、H57 |
+| [F4-IO] | N76、N77、N100、N101、N106〜N129、N174〜N178、N182〜N184 | H40〜H42、H57、H72〜H74 |
 | [F5] | N132〜N134、N145、N148、N149 | H18〜H20、H24、H55、H56、H67 |
-| [F6] | 対象外（code=false。ESP32 側の対応なし） | H44〜H49、H63、H64、H66 |
+| [F6] | 対象外（code=false。ESP32 側の対応なし） | H44〜H49、H63、H64、H66、H75 |
 | [N-AUTH] | N181 | H28 |
 | [N-WIFI] | 対象外（判断が `src/wifi_manager` にあり native テストを作らない。D-01 1節の人の判断） | H30〜H33、H61、H64 |
 | [N-STATE] | N01、N82、N131 | H34、H41 |
-| [N-BOOT] | N43、N82、N84、N130、N145、N180 | H10、H30、H35、H43、H61 |
+| [N-BOOT] | N43、N82、N84、N130、N145、N180 | H10、H30、H35、H43、H61、H69 |
 | [N-TIME] | N35〜N37、N43、N83、N84、N86、N87、N107、N145、N147、N175、N179 | H26、H27、H54、H60、H61、H63、H64 |
 | [N-RESP] | 対象外（時間の計測は実機だけ。D-05 9節・D-06 3節） | H25、H49、H52、H65 |
-| [UI] | 対象外（画面は C++ ではない。画面が頼る API の形は N145〜N181 で確かめる） | H21〜H24、H36、H50〜H59、H62、H63、H67 |
-| [API] | N141〜N163、N165、N166、N168、N181、N184 | H17、H29 |
+| [UI] | 対象外（画面は C++ ではない。画面が頼る API の形は N145〜N181 で確かめる） | H21〜H24、H36、H50〜H59、H62、H63、H67、H70〜H74 |
+| [API] | N141〜N163、N165、N166、N168、N181、N184、N192 | H17、H29 |
 | [HW-PINS] | 対象外（`src/pins.h` は native でビルドしない） | H01、H02、H10、H11、H14、H18 |
 | （参考）[N-IP] | 対象外（この作業項目の対象要件 T-01 の reqs の外。native の対象コードも無い） | H45、H64（F6 の前提として IP 固定を確かめるために付けた。カバレッジの判定には数えない） |
 
@@ -494,3 +511,6 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 6. `Hub::clockNow()` が `IClock::now()` を何回呼ぶかは明記されていない。TC-N174 はそれに頼らず、呼ぶたびに進む FakeClock（`seq`）で「ファイル名と `exportedAt` が同じ時刻」だけを確かめる（D-04 8節）。
 7. F5 の画面への反映の時間：D-05 のテスト観点は「30 秒以内に変化が反映される」だが、センサーの周期（30 秒、D-06）と画面の読み直し（30 秒、D-05）が重なると最悪 60 秒になる。TC-H24 は 60 秒で判定した。どちらを正とするかは人が決める。
 8. N-RESP で、エアコンの送信中に照明を押した場合の合否の値が無い（D-06 3.3「1 秒前後に収まる見込み。実機で測る」）。TC-H65 (a) は時間を記録するだけにした。
+9. D-02 のテスト観点（Hub と合わせて）は「停止中の変更の後、`acState()` と `settingsFor` が更新後の値」とするが、`Hub` には `settingsFor` が無い（D-01 5節は `acState()` だけ）。TC-N187 はモードを切り替えて `acState()` に出る値で、停止中の変更がモード別の記憶に入ったことを間接に確かめる。`settingsFor` そのものは `AcModel` 単体（TC-N25）で確かめる。
+11. D-04 のテスト観点（04-api.md 531行「`{"temp":27}` → 200 … `acCount` が1増え」）は人の判断(2)の前のままで、生成直後（停止中）に送ると D-02 6節・D-01 の「停止中に power を含まないパッチは送らない」と食い違う。人の判断(2)を反映した D-02 6節と D-01 を正とし、TC-N152・N163・N164 は前提に「`{"power":true}` で運転中にする」を足した。停止中の `{"temp":27}` は TC-N192 で送信 0 回を確かめる。D-04 のテスト観点の文言を直す必要がある。
+10. エクスポートで、応答を待った後の `a.click()` を iOS Safari・Android Chrome が止めた場合の代わりの手段が決まっていない（D-05 6.5 の要確認・疑問7）。TC-H40 は保存されなければ fail とし、どうなったかを記録するだけにした（代わりの手段は人が決める）。
