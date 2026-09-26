@@ -150,3 +150,5 @@
 - 2026-09-26T12:14:44+09:00 START T-01 attempt=1
 - 2026-09-26T12:20:05+09:00 DONE T-01 attempts=1
 - 2026-09-26T12:29:30+09:00 RESOLVE H-DESIGN pass 人が設計書（D-01〜D-07）とテスト計画（T-01）を確認して承認。H-DESIGN レビューの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry、Wi-Fi 断でスケジュールが消えるのは受け入れ、HITACHI の上下風向は I-06/H-2 で確認）と推奨の反映を含む。F1 の追記は requirements.md に反映済み（87cdf12）。
+- 2026-09-26T12:30:50+09:00 START T-02 attempt=1
+- 2026-09-26T12:34:56+09:00 DONE T-02 attempts=1
