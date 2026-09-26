@@ -139,3 +139,5 @@
 あわせて loop/reviews/D-03-a1.md の推奨2：D-03 に formatJstIso が公開されたので、D-04 の「formatJstIso は D-03 に無い」という記述（386行・391行付近と要件への疑問11）を今の D-03 に合わせて直す。
 - 2026-09-26T12:08:15+09:00 START D-03 attempt=1
 - 2026-09-26T12:09:11+09:00 DONE D-03 attempts=1
+- 2026-09-26T12:09:11+09:00 START D-04 attempt=1
+- 2026-09-26T12:10:37+09:00 DONE D-04 attempts=1

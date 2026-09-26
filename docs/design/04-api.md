@@ -382,13 +382,13 @@ void writeCapabilities(JsonObject o);                        // 3節の "acCapab
 `clock.now` の文字列は api.cpp で作らない。**schedule_json 側の公開関数を使う**（`exportedAt` と同じ書式を1か所で作り、ずれないようにする）：
 
 ```cpp
-// lib/core/src/schedule_json.h に公開される関数（D-03 に足す必要がある。要件への疑問 11）
+// lib/core/src/schedule_json.h の公開関数（D-03 6節で公開済み。ここでは使うだけ）
 // LocalTime → "YYYY-MM-DDTHH:MM:SS+09:00"（ゼロ埋め）。exportedAt と /api/status の clock.now の両方で使う
 std::string formatJstIso(const LocalTime& t);
 ```
 
 - `getStatus` は `now.synced` なら `o["now"] = formatJstIso(now.local)`、そうでなければ `o["now"] = nullptr`。
-- D-03 の今の `schedule_json.h`（6節）にはこの関数が無い（`exportedAt` の書式は schedule_json.cpp の中で作る形）。D-03 に公開関数として足すまで、api.cpp に同じ書式のフォーマッタを別に作らない（実装項目では D-03 の修正を先に行う）。
+- この関数は D-03 6節の `schedule_json.h` に公開されており、`schedulesToJson` の `exportedAt` も同じ関数で作る（D-03 6.2）。api.cpp に同じ書式のフォーマッタを別に作らない。
 
 `handle` の振り分け（パスを先に見て、合わなければ 404、パスが合ってメソッドが違えば 405）：
 
@@ -554,7 +554,7 @@ C++17：core は `std::optional`・`std::string_view` を使うので C++17 が�
   - 400 のときは必ず `acCount` が増えず、`acState()` が変わらない。
   - 検査の順：`{"x":1,"temp":"a"}` → `unknown key "x"`（知らないキーが先）。`{"fan":"turbo","temp":"a"}` → `temp: must be integer`（決まった順 power, mode, temp, fan…）。
   - `invalid json`：空文字、`[1]`、`"x"`、壊れた JSON。`body too large`：513 バイトの本文（512 は通る形で作って確かめる）。
-  - FakeIrSender の `sendAc` が false を返しても 200。
+  - `{"power":true}` で運転中にしてから、FakeIrSender の `sendAc` が false を返す設定で `{"temp":27}` → 200、`acCount` 1→2（`sendAc` が呼ばれ false を返しても 200。test-plan の TC-N164 と同じ前提）。
 - `/api/light`（F3）：6つの文字列それぞれで 200 `{"ok":true}`、`lightCount==1`、`lastLight` が一致。`{"button":"on"}`・`{"button":1}`・`{}`・`{"button":"night","x":1}` → 10.4 の文言で 400、送信 0 回。`sendLight` が false でも 200。
 - スケジュール（F4・F4-IO）：
   - `GET /api/schedules`：起動直後 `{"max":kScheduleMax,"schedules":[]}`。
@@ -576,7 +576,7 @@ C++17：core は `std::optional`・`std::string_view` を使うので C++17 が�
 - `curl -X POST ... -d '{"button":"night"}' http://<IP>/api/light` → 照明が常夜灯になる（F3）。
 - `curl -X PUT -H 'Content-Type: application/json' -d '{"schedules":[...]}' http://<IP>/api/schedules` → 200（WebServer が PUT の本文を `arg("plain")` に入れることの確認。12節の要確認）。
 - `curl 'http://<IP>/api/status?x=1'` → 200（`uri()` がクエリを含まないことの確認）。
-- スマホで `/api/schedules/export` を開くとファイルとして保存され、名前が `irhub-schedules-YYYYMMDD-HHMM.json`（`Content-Disposition` が効く。iOS Safari・Android Chrome で確認）。
+- `curl -D - http://<IP>/api/schedules/export` で、応答ヘッダの `Content-Disposition` の filename が `irhub-schedules-YYYYMMDD-HHMM.json`（NTP 取得後）であることを確かめる。スマホでの保存は URL を直接開かず、D-05 6.5 の画面のエクスポートボタン（fetch＋Blob）から行い、同じ名前のファイルとして保存されることを iOS Safari・Android Chrome で確かめる（TC-H40）。
 - 保存したファイルを画面から読み込むと一覧が戻る（再起動後、フェーズ5の判定。画面は D-05）。
 - `Content-Type` を付けない・`application/x-www-form-urlencoded` で送ると本文が届かず `invalid json` になる（1節の決まりの根拠の確認）。
 - Tailscale 経由（F6）でも同じ応答が返る（ESP32 側の対応なし）。
@@ -595,4 +595,4 @@ C++17：core は `std::optional`・`std::string_view` を使うので C++17 が�
 8. **WebServer が PUT の本文を受け取れるか。** 要件5章は `PUT /api/schedules` を指定している。Arduino core 2.x の `WebServer` が PUT の本文を `arg("plain")` に入れるかは要確認（12節）。受け取れなかった場合に `POST` へ変えるかは要件（API、仮）の変更になるので、実装で分かった時点で人に判断してもらう。
 9. **室温・湿度の表示の細部。** 要件は「値を表示する」だけ。推測：小数1桁に丸めて返し、最後の読み取りが失敗していたら（前に読めた値があっても）null にするとした（D-01 の「読み取り失敗が `lastClimate()` に反映される」に合わせた。古い値を出し続けない）。
 10. **`/api/status` の時刻の形。** 要件は「時刻」とだけ書く。推測：エクスポートの `exportedAt` と同じ `"YYYY-MM-DDTHH:MM:SS+09:00"`、未取得なら null とした。画面は秒まで出すか分までにするかを D-05 で決める。
-11. **時刻の文字列を作る関数の置き場所（D-03 への申し送り）。** `clock.now` と `exportedAt` の書式を1か所で作るため、api は schedule_json の公開関数 `std::string formatJstIso(const LocalTime& t)` を使う形にした（11節）。D-03 の `schedule_json.h`（6節）には今この関数が公開されていないので、D-03 に公開関数として足す必要がある（D-04 の範囲では直せない）。足すまで api.cpp に別のフォーマッタは作らない。
+11. **時刻の文字列を作る関数の置き場所（D-03 への申し送り）。** `clock.now` と `exportedAt` の書式を1か所で作るため、api は schedule_json の公開関数 `std::string formatJstIso(const LocalTime& t)` を使う形にした（11節）。**解決済み**：D-03 6節の `schedule_json.h` にこの関数が公開され、`exportedAt` もそれで作る形になった。api.cpp に別のフォーマッタは作らない。
