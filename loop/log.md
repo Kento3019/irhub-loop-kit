@@ -267,3 +267,4 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-26T22:44:29+09:00 RETRY T-01 attempts=2 reason=review REJECT
 - 2026-09-26T22:44:54+09:00 START T-01 attempt=3
 - 2026-09-26T22:48:25+09:00 DONE T-01 attempts=3
+- 2026-09-26T22:55:14+09:00 RESOLVE H-DESIGN pass 人が D1 確定・F3 対象外に合わせて作り直した設計書（D-01〜D-07）とテスト計画（T-01）を再確認して承認（/hw-gate H-DESIGN pass）。テスト計画の『設計の不足』8件と審査の推奨3件について、人のメモはなし。

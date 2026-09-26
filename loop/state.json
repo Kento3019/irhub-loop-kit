@@ -320,7 +320,7 @@
     {
       "id": "H-DESIGN",
       "type": "human",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01",
         "D-02",
@@ -333,7 +333,7 @@
       ],
       "title": "人：設計とテスト計画を読んで承認",
       "how": "docs/design/*.md と docs/test/test-plan.md を読む。各設計の『要件への疑問』に答える。直したい点があれば /hw-gate H-DESIGN fail でメモを残すと、該当項目を差し戻せる。問題なければ /hw-gate H-DESIGN pass。",
-      "resolved_note": "人が設計書（D-01〜D-07）とテスト計画（T-01）を確認して承認。H-DESIGN レビューの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry、Wi-Fi 断でスケジュールが消えるのは受け入れ、HITACHI の上下風向は I-06/H-2 で確認）と推奨の反映を含む。F1 の追記は requirements.md に反映済み（87cdf12）。",
+      "resolved_note": "人が D1 確定・F3 対象外に合わせて作り直した設計書（D-01〜D-07）とテスト計画（T-01）を再確認して承認（/hw-gate H-DESIGN pass）。テスト計画の『設計の不足』8件と審査の推奨3件について、人のメモはなし。",
       "attempts": 0,
       "human_feedback": "D1 確定と F3 対象外に合わせて設計書7本とテスト計画を作り直したため、人が再確認する。"
     },
