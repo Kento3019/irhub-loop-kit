@@ -376,7 +376,7 @@
       "id": "I-01",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "T-02"
       ],
@@ -404,7 +404,11 @@
           "env": "esp32"
         }
       ],
-      "brief": "test/test_ac_state を通す。テストは変更できない。テストが設計と矛盾していると判断したら実装で合わせず、報告して止める。"
+      "brief": "test/test_ac_state を通す。テストは変更できない。テストが設計と矛盾していると判断したら実装で合わせず、報告して止める。",
+      "attempts": 1,
+      "base_commit": "6a44f31fa113755f4380c7d8df15f1fa1a25c141",
+      "started_at": "2026-09-26T12:36:44+09:00",
+      "done_at": "2026-09-26T13:04:25+09:00"
     },
     {
       "id": "T-03",
