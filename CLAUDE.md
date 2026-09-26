@@ -18,7 +18,7 @@ ESP32 でエアコンと照明を赤外線で操作する自作ハブ。設計�
 |---|---|---|
 | designer | 設計書 | docs/design, docs/ops |
 | test-designer | テスト計画、Unity テスト | docs/test, test |
-| implementer | 実装 | lib, src, web, tools, platformio.ini |
+| implementer | 実装 | lib, src, web, tools, platformio.ini, include/secrets.h.example |
 | reviewer | 審査結果 | loop/reviews |
 
 書ける場所は `.claude/hooks/guard.py` が強制する。
