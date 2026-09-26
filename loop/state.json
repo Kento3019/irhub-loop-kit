@@ -675,10 +675,11 @@
     {
       "id": "H-0",
       "type": "human",
-      "status": "todo",
+      "status": "done",
       "deps": [],
       "title": "人：フェーズ0 ESP32単体の動作確認",
-      "how": "USB接続して `pio run -e esp32 -t upload` → `pio device monitor`。1秒ごとに 'irhub phase0 tick' が出れば pass。書き込みは人が行う（ループは upload できない設定）。"
+      "how": "USB接続して `pio run -e esp32 -t upload` → `pio device monitor`。1秒ごとに 'irhub phase0 tick' が出れば pass。書き込みは人が行う（ループは upload できない設定）。",
+      "resolved_note": "人が実機で確認して pass（TC-H01：ESP32 に書き込み、pio device monitor で 'irhub phase0 tick' が1秒ごとに出る）"
     },
     {
       "id": "H-1",
