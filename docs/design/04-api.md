@@ -105,7 +105,7 @@ NTP 未取得・センサー未読み取り（起動直後）：
 | `climate.temperature` | 数値 または null | `temperatureC` | 小数1桁に丸める（`std::round(x * 10.0) / 10.0`）。`valid == false` なら null |
 | `climate.humidity` | 数値 または null | `humidityPct` | 同上 |
 | `clock.synced` | bool | `hub.clockNow().synced` | false の間、画面は「時刻未取得のためスケジュールは実行されません」を出す（N-TIME、文言は D-05） |
-| `clock.now` | 文字列 または null | `ClockReading::local` | `"YYYY-MM-DDTHH:MM:SS+09:00"`（ゼロ埋め、D-03 6.2 の `exportedAt` と同じ書式）。`synced == false` なら null |
+| `clock.now` | 文字列 または null | `ClockReading::local` | `"YYYY-MM-DDTHH:MM:SS+09:00"`（ゼロ埋め、D-03 6.2 の `exportedAt` と同じ書式。schedule_json の `formatJstIso` で作る、11節）。`synced == false` なら null |
 
 - 照明のボタンの一覧は載せない。6つは要件 F3 で決定しており（受信結果で変わらない）、画面の日本語の表示名と一緒に画面側に持つ（D-05）。API の文字列は5節の6つ。
 - スケジュールの上限 `max` は `/api/status` ではなく `GET /api/schedules` に載せる（D-03 6.1 のとおり）。
@@ -151,7 +151,7 @@ NTP 未取得・センサー未読み取り（起動直後）：
 ```
 
 - `Hub::applyAc` が true なら、`sendAc` の戻り値にかかわらず 200（D-01 5節：送信の失敗は状態を戻さず、応答にも出さない）。
-- 同じ値だけのパッチも 200 で状態一式を送る（D-02 4節）。
+- 同じ値だけのパッチも 200（D-02 4節）。送るかどうかは D-02 6節の規則どおり（運転中なら状態一式を送る。停止中に power を含まないパッチは状態を更新するだけで送らない）。API はこの規則を知らず、`hub.applyAc` の戻り値だけを見る。
 
 ### 5. POST /api/light
 
@@ -254,7 +254,7 @@ if (e != None) → 400 {"error": bad >= 0 ? "schedules[<bad>]: " + errorMessage(
                    "target": "ac", "action": { "power": true, "mode": "heat", "temp": 20 } } ] }
 ```
 
-`web_bridge` は `downloadFilename` が空でなければ `Content-Disposition: attachment; filename="<名前>"` を付ける（12節）。画面は `<a href="/api/schedules/export" download>` で開けばよい（D-05）。
+`web_bridge` は `downloadFilename` が空でなければ `Content-Disposition: attachment; filename="<名前>"` を付ける（12節）。画面は `fetch` でこの応答を受け取り、Blob にして保存する（ファイル名は `Content-Disposition` から読む。D-05 6.5）。API の形はこのまま変えない。
 
 ### 9. POST /api/schedules/import
 
@@ -276,6 +276,9 @@ if (e != None) → 400 {"error": bad >= 0 ? "schedules[<bad>]: " + errorMessage(
 |---|---|---|
 | パスが2節の表に無い（`/api/foo`、`/api/status/`、`/favicon.ico` など `/` 以外すべて） | 404 | `not found` |
 | パスはあるがメソッドが違う（`POST /api/status`、`GET /api/ac`、`DELETE /api/schedules` など。`HttpMethod::Other` を含む） | 405 | `method not allowed` |
+| `/` に `GET` 以外（`POST /`、`PUT /`、`DELETE /` など） | 404 | `not found` |
+
+- `/` の `GET` だけは web_bridge の `on("/", HTTP_GET, ...)` が受ける。`GET` 以外の `/` はこの登録に合わず `onNotFound` → `ApiRouter` に来る。`ApiRouter` の振り分け表（11節）に `/` は無いので「それ以外」＝ **404**（405 ではない）。
 
 #### 10.2 共通（本文のあるエンドポイント）
 
@@ -323,6 +326,7 @@ D-01 の `api.h` に定数と、テストしやすいように本文の解析関
 #include <string>
 #include <string_view>
 #include "hub.h"
+#include "schedule_json.h"   // ScheduleJsonKind・schedulesToJson・schedulesFromJson・exportFilename・formatJstIso（D-01 の依存 api → schedule_json の範囲内）
 
 namespace irhub {
 
@@ -350,7 +354,7 @@ bool parseAcPatchJson(std::string_view body, AcPatch* out, std::string* error);
 class ApiRouter {
  public:
   explicit ApiRouter(Hub& hub);
-  ApiResponse handle(const ApiRequest& req);   // "/" 以外のすべてのパスを受ける（無いものは 404）
+  ApiResponse handle(const ApiRequest& req);   // onNotFound から来るすべて（GET 以外の "/" も含む。無いパスは 404）
  private:
   ApiResponse getStatus();
   ApiResponse postAc(const std::string& body);
@@ -373,8 +377,18 @@ ApiResponse jsonOk(std::string body);                        // 200
 ApiResponse jsonError(int status, std::string_view message); // {"error": message} を ArduinoJson で作る
 void writeAcState(JsonObject o, const AcState& s);           // 3節の "ac" の形（hasTemp=false なら temp は null）
 void writeCapabilities(JsonObject o);                        // 3節の "acCapabilities"（cap:: だけから作る）
-std::string formatJstIso(const LocalTime& t);                // "YYYY-MM-DDTHH:MM:SS+09:00"（snprintf、バッファ 32）
 ```
+
+`clock.now` の文字列は api.cpp で作らない。**schedule_json 側の公開関数を使う**（`exportedAt` と同じ書式を1か所で作り、ずれないようにする）：
+
+```cpp
+// lib/core/src/schedule_json.h に公開される関数（D-03 に足す必要がある。要件への疑問 11）
+// LocalTime → "YYYY-MM-DDTHH:MM:SS+09:00"（ゼロ埋め）。exportedAt と /api/status の clock.now の両方で使う
+std::string formatJstIso(const LocalTime& t);
+```
+
+- `getStatus` は `now.synced` なら `o["now"] = formatJstIso(now.local)`、そうでなければ `o["now"] = nullptr`。
+- D-03 の今の `schedule_json.h`（6節）にはこの関数が無い（`exportedAt` の書式は schedule_json.cpp の中で作る形）。D-03 に公開関数として足すまで、api.cpp に同じ書式のフォーマッタを別に作らない（実装項目では D-03 の修正を先に行う）。
 
 `handle` の振り分け（パスを先に見て、合わなければ 404、パスが合ってメソッドが違えば 405）：
 
@@ -420,7 +434,7 @@ temp ：あれば is<int>() でなければ "temp: must be integer"、out->tempC
 fan / swingV / swingH：mode と同じ形
 ```
 
-- 「キーがある」は `obj[key]` が unbound でないことで見る。ArduinoJson v7 では `obj["temp"].isNull()` が「キーが無い」と「値が null」の両方で true になるので、キーの有無は `for (JsonPair kv : obj)` の走査で集める（`null` の値は「キーはあるが型が違う」＝ `must be ...` にするため）。
+- キーの有無は **`for (JsonPair kv : obj)` の走査で集める方法だけ**で判定する。上の「知らないキー」の走査と同じループで、6つのキーそれぞれについて「出てきたか」の bool（`bool seen[6]`）と値（`JsonVariantConst`）を記録し、以降の形の検査は `seen` が true のキーだけを見る。`obj["temp"].isNull()` などでキーの有無を判定しない（ArduinoJson v7 では「キーが無い」と「値が null」の両方で true になり、`null` の値を「キーはあるが型が違う」＝ `must be ...` にできないため）。`/api/light` の `button` も同じ走査で `button: missing` を判定する。
 - `is<int>()` が `26.5`・`1e10`・`true`・`"26"`・`null` に false を返すことは D-03 と同じく**要確認**（test_api で確かめる。false にならなければ `is<long long>`／`is<double>` と整数判定を自前で行う）。
 
 使う ArduinoJson v7 の API は D-03 6 節の一覧と同じ（`JsonDocument`、`deserializeJson(doc, const char*, size_t)`、`is<T>()`、`as<T>()`、`for (JsonPair kv : obj)`、`kv.key().c_str()`、`to<JsonObject>()`、`to<JsonArray>()`、`JsonArray::add(value)`、`serializeJson(doc, std::string&)`）。null の書き込みは `o["temp"] = nullptr`（v7 で使える。**要確認**：ESP32 ビルドでも同じ）。
@@ -482,6 +496,10 @@ server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 - `PUT` でも本文が読まれて `arg("plain")` に入ること（POST と同じ扱いか）。入らなければ、実装者が勝手に `POST` へ変えず（要件5章の `PUT` を守る）、実装時に報告して人が判断する（要件への疑問 8）。
 - `uri()` がクエリ文字列を含まないこと。
 
+メモリの扱い：WebServer（core 2.x）は、`ApiRouter` が本文の上限（`kApiSmallBodyMaxBytes`・`kScheduleJsonMaxBytes`）を確かめるより前に、Content-Length 分の本文をまるごと読んで `arg("plain")`（`String`）に入れ、さらに `req.body`（`std::string`）へコピーする。よってこの上限は RAM の守りにはならない（大きすぎる本文は `ApiRouter` に届く前にヒープを使う）。上限の役目は「おかしな本文を 400 `body too large` で断ること」だけとする。要件の範囲（LAN 内・自分だけが使う、N-AUTH）ではこれで足りるとし、Content-Length を先に見て断るなどの対策は作らない。
+
+C++17：core は `std::optional`・`std::string_view` を使うので C++17 が要る。ESP32 のビルドで `-std=gnu++17` にするのは I-04（platformio.ini）で入れる。
+
 ### 13. 作らないもの
 
 | 作らないもの | 理由 |
@@ -509,7 +527,7 @@ server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 | F4-LIMIT（10件） | 仮 | `GET /api/schedules` の `max` と上限超過の文言は `kScheduleMax` から作る | `schedule.h` の `kScheduleMax` だけ |
 | N-TIME | 仮 | `/api/status` の `clock.synced`・`clock.now`（未取得は `false`・`null`）。警告の文言と出し方は D-05。未取得でもスケジュール API は受け付ける | 方針が変われば `getStatus()` と D-05。`synced` の判定は D-06（`src/clock_esp32.cpp`） |
 | F5 の更新間隔 30 秒 | 仮（F5 は決定） | API は `Hub::lastClimate()` を返すだけで周期を知らない | `hub.h` の `kClimateIntervalMs` だけ（API は直さない） |
-| 本文の上限 512 バイト | 推測 | `api.h` の `kApiSmallBodyMaxBytes` | その定数1つ |
+| 本文の上限 512 バイト | 推測 | `api.h` の `kApiSmallBodyMaxBytes`。RAM の守りではなく、断るための上限（WebServer が先に Content-Length 分を確保するため。12節） | その定数1つ |
 | C-TECH の WebServer（原本では「ESPAsyncWebServer は使わない」が仮） | 仮扱い | WebServer に触るのは `src/web_bridge.*` だけ | 変わっても `src/web_bridge.*` だけ |
 
 ---
@@ -520,15 +538,16 @@ server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 
 `ApiRouter` を `Hub`（FakeIrSender・FakeClock・FakeClimateSensor）とつないで、`handle(ApiRequest)` の戻り値の `status` と、`body` を ArduinoJson で読み直した中身を確かめる。期待値の数値・選択肢は `cap::`・`kScheduleMax` から作り、直書きしない。
 
-- ルーティング（API）：2節の各メソッド・パスが 200 系の処理に行く。`/api/foo`・`/api/status/`・`/favicon.ico` → 404 `not found`。`POST /api/status`・`GET /api/ac`・`PUT /api/light`・`Other` で `/api/schedules` → 405 `method not allowed`。404／405 のときに送信 0 回・状態不変。
+- ルーティング（API）：2節の各メソッド・パスが 200 系の処理に行く。`/api/foo`・`/api/status/`・`/favicon.ico` → 404 `not found`。`POST /`・`PUT /` → 404 `not found`（405 ではない、10.1）。`POST /api/status`・`GET /api/ac`・`PUT /api/light`・`Other` で `/api/schedules` → 405 `method not allowed`。404／405 のときに送信 0 回・状態不変。
 - `/api/status`（F1・F5・N-TIME）：
   - 起動直後：`ac` が F2 の初期値、`climate.valid=false` で `temperature`・`humidity` が null、`clock.synced=false` で `now` が null。呼んでも `acCount==0`（N-BOOT）。
   - `acCapabilities` が `cap::` と一致（`tempMin/Max/Step`、`fan`・`swingV`・`swingH` の並び順、`modes` が4つ、`tempModes` が `cap::tempSupported` の真のモード）。
-  - FakeClock を synced にすると `now` が `+09:00` 付きゼロ埋め（例 2026-01-05 07:03:09 → `"2026-01-05T07:03:09+09:00"`）。
+  - FakeClock を synced にすると `now` が `+09:00` 付きゼロ埋め（例 2026-01-05 07:03:09 → `"2026-01-05T07:03:09+09:00"`）。同じ時刻で export した本文の `exportedAt` と `/api/status` の `now` が同じ文字列（どちらも `formatJstIso` で作ることの確認）。
   - センサーを読ませると `temperature` が小数1桁（24.46 → 24.5、55.24 → 55.2）。読み取り失敗にすると `valid=false`・null。
   - `hasTemp==false` のモードがあれば `ac.temp` が null（無ければ `TEST_IGNORE_MESSAGE`、D-02 と同じ流儀）。
 - `/api/ac`（F1）：
-  - `{"temp":27}` → 200、応答の `ac.temp==27`、他は変わらず、`acCount` が1増え `lastAc` が `acState()` と一致。
+  - 先に `{"power":true}` で運転中にしてから（`acCount==1`）`{"temp":27}` → 200、応答の `ac.temp==27`、他は変わらず、`acCount` が1増えて2、`lastAc` が `acState()` と一致。
+  - 生成直後（停止中）に `{"temp":27}` → 200、応答の `ac.temp==27`・`ac.power==false`、`acCount==0`（停止中に power を含まないパッチは送らない。D-01・D-02 6節）。
   - 全項目の本文 → 200。`{"mode":"heat"}` で暖房の記憶が復元される（D-02 4節の遷移表を API 経由で数行）。
   - 形のエラー（10.3 の api.cpp の行を全部）：`{"temp":26.5}`、`{"temp":"26"}`、`{"temp":null}`、`{"power":1}`、`{"mode":3}`、`{"mode":"Cool"}`、`{"fan":"turbo"}`、`{"swingV":"up"}`、`{"swingH":"x"}`、`{"timer":60}`（F1-TIMER を作っていないことの確認）→ それぞれの文言で 400。
   - 値のエラー：`{}` → `no ac fields`、`cap::kTempMaxC+1` → `temp out of range`、`cap::fanSupported` が false の列挙の文字列 → `fan not supported`。
@@ -553,7 +572,7 @@ server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 
 - `pio run -e esp32` で `api.cpp`（`serializeJson(doc, std::string&)`、`o["temp"] = nullptr`）と `web_bridge.cpp` がビルドできる。
 - スマホのブラウザで `GET /api/status` を開き、JSON が返る。温度・湿度が DHT20 の値、時刻が JST（F5・N-TIME）。
-- `curl -X POST -H 'Content-Type: application/json' -d '{"temp":27}' http://<IP>/api/ac` → 200、エアコンが 27℃ になる（F1）。`-d '{"temp":99}'` → 400 で動かない。
+- `curl -X POST -H 'Content-Type: application/json' -d '{"power":true}' http://<IP>/api/ac` で運転中にしてから `-d '{"temp":27}'` → 200、エアコンが 27℃ になる（F1）。停止中に `{"temp":27}` を送ると 200 でエアコンには何も届かない（D-02 6節）。`-d '{"temp":99}'` → 400 で動かない。
 - `curl -X POST ... -d '{"button":"night"}' http://<IP>/api/light` → 照明が常夜灯になる（F3）。
 - `curl -X PUT -H 'Content-Type: application/json' -d '{"schedules":[...]}' http://<IP>/api/schedules` → 200（WebServer が PUT の本文を `arg("plain")` に入れることの確認。12節の要確認）。
 - `curl 'http://<IP>/api/status?x=1'` → 200（`uri()` がクエリを含まないことの確認）。
@@ -576,3 +595,4 @@ server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 8. **WebServer が PUT の本文を受け取れるか。** 要件5章は `PUT /api/schedules` を指定している。Arduino core 2.x の `WebServer` が PUT の本文を `arg("plain")` に入れるかは要確認（12節）。受け取れなかった場合に `POST` へ変えるかは要件（API、仮）の変更になるので、実装で分かった時点で人に判断してもらう。
 9. **室温・湿度の表示の細部。** 要件は「値を表示する」だけ。推測：小数1桁に丸めて返し、最後の読み取りが失敗していたら（前に読めた値があっても）null にするとした（D-01 の「読み取り失敗が `lastClimate()` に反映される」に合わせた。古い値を出し続けない）。
 10. **`/api/status` の時刻の形。** 要件は「時刻」とだけ書く。推測：エクスポートの `exportedAt` と同じ `"YYYY-MM-DDTHH:MM:SS+09:00"`、未取得なら null とした。画面は秒まで出すか分までにするかを D-05 で決める。
+11. **時刻の文字列を作る関数の置き場所（D-03 への申し送り）。** `clock.now` と `exportedAt` の書式を1か所で作るため、api は schedule_json の公開関数 `std::string formatJstIso(const LocalTime& t)` を使う形にした（11節）。D-03 の `schedule_json.h`（6節）には今この関数が公開されていないので、D-03 に公開関数として足す必要がある（D-04 の範囲では直せない）。足すまで api.cpp に別のフォーマッタは作らない。
