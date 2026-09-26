@@ -8,7 +8,7 @@
 
 ## 対象要件
 
-- [F1] エアコン操作：「2. 型」の `AcState`（運転・モード・温度・風量・風向の状態一式）、「4. 部分更新」、「6. Hub での使い方」（1回の変更で状態一式を1回送る）、「7. stdAc::state_t への変換」
+- [F1] エアコン操作：「2. 型」の `AcState`（運転・モード・温度・風量・風向の状態一式）、「4. 部分更新」、「6. Hub での使い方」（1回の変更で状態一式を1回送る。停止中に power を含まないパッチは送らない）、「7. stdAc::state_t への変換」
 - [F1-VALUES] 温度範囲・風量・風向の選択肢（未決）：「1. ac_capabilities.h」に仮値を集め、各値に `// PENDING(F1-VALUES)` を付ける。値を使う側は定数名だけを参照する。画面へ渡す形は「8. 画面へ渡す選択肢」
 - [F1-TIMER] 本体タイマー（未決）：作らない。「9. 作らないもの」と「仮・未決の扱い」に扱いだけを書く
 - [F2] 初期設定：「3. モード別の記憶と初期値」の `kInitialSettings`（`// 仮(F2)`）と、「4. 部分更新」のモード切替時の復元規則
@@ -301,24 +301,29 @@ state_.swingH  = perMode_[mode_].swingH
 補足の規則：
 - 温度の検査は**更新後のモード**で行う。例：今が冷房で `{"mode":"dry","temp":24}` が来たら、除湿で温度を指定できるかを見る。
 - 風量・風向の選択肢はモードによらず共通（`cap::` にモード別の表は無い）。
-- 停止中（`power_=false`）でも温度・風量・風向・モードは変えられる。変えたら状態一式（`power=false` を含む）を送る（F1「1項目を変えたときも、状態一式を送る」）。
-- 今と同じ値だけのパッチ（例：冷房中に `{"mode":"cool"}`）もエラーにしない。状態は変わらず、状態一式を送る。
+- 停止中（`power_=false`）でも温度・風量・風向・モードは変えられる。状態（`perMode_` のモード別の記憶も含む）は運転中と同じ規則で更新する。**送るかどうかは `AcModel` ではなく `Hub::applyAc` が決める**（6節）：更新前が停止中で、パッチが power を含まないときは送らない（人の判断、H-DESIGN レビュー）。`AcModel::apply` 自体は送信の有無にかかわらず同じ動きをする。
+- 「パッチが power を含む」の判定は **`AcPatch::power.has_value()`** だけで行う。値が `true` か `false` か、今の `power_` と同じかは見ない（例：停止中に `{"power":false}` が来たら含むので送る）。
+- 今と同じ値だけのパッチ（例：冷房中に `{"mode":"cool"}`）もエラーにしない。状態は変わらない。送信は上の規則どおり（運転中なら状態一式を送る、停止中で power を含まなければ送らない）。
 - 温度が整数でない（例 `26.5`）、型が違う（例 `"temp":"26"`）、知らない文字列（例 `"fan":"turbo"`）は、`AcPatch` を作る前に `api`（D-04）が 400 にする。`AcModel` に来る時点で `tempC` は `int`、他は列挙になっている。
 
-状態遷移の例（`cap::` は上の仮値、除湿は温度指定できるものとする）：
+状態遷移の例（`cap::` は上の仮値、除湿は温度指定できるものとする。「送信」欄は 6節の `Hub::applyAc` を通したときの `sendAc` の回数）：
 
-| 前の状態（power, mode, temp, fan） | パッチ | 結果 | 後の状態 | perMode_ の変化 |
-|---|---|---|---|---|
-| 起動直後 false, cool, 26, auto | `{"power":true}` | None | true, cool, 26, auto | なし |
-| true, cool, 26, auto | `{"temp":27}` | None | true, cool, 27, auto | Cool.temp=27 |
-| true, cool, 27, auto | `{"mode":"heat"}` | None | true, heat, 20, auto | なし（Heat の初期値を復元） |
-| true, heat, 20, auto | `{"temp":22,"fan":"high"}` | None | true, heat, 22, high | Heat.temp=22, Heat.fan=high |
-| true, heat, 22, high | `{"mode":"cool"}` | None | true, cool, 27, auto | なし（Cool の最後の設定 27 を復元） |
-| true, cool, 27, auto | `{"mode":"heat","temp":18}` | None | true, heat, 18, high | Heat.temp=18（復元の後に上書き） |
-| true, heat, 18, high | `{"temp":31}` | TempOutOfRange | 変わらない | なし |
-| true, heat, 18, high | `{"mode":"cool","temp":40}` | TempOutOfRange | 変わらない（モードも変えない） | なし |
-| true, heat, 18, high | `{"power":false}` | None | false, heat, 18, high | なし |
-| true, heat, 18, high | `{}` | EmptyPatch | 変わらない | なし |
+| 前の状態（power, mode, temp, fan） | パッチ | 結果 | 後の状態 | perMode_ の変化 | 送信 |
+|---|---|---|---|---|---|
+| 起動直後 false, cool, 26, auto | `{"power":true}` | None | true, cool, 26, auto | なし | 1（power を含む） |
+| true, cool, 26, auto | `{"temp":27}` | None | true, cool, 27, auto | Cool.temp=27 | 1（運転中） |
+| true, cool, 27, auto | `{"mode":"heat"}` | None | true, heat, 20, auto | なし（Heat の初期値を復元） | 1 |
+| true, heat, 20, auto | `{"temp":22,"fan":"high"}` | None | true, heat, 22, high | Heat.temp=22, Heat.fan=high | 1 |
+| true, heat, 22, high | `{"mode":"cool"}` | None | true, cool, 27, auto | なし（Cool の最後の設定 27 を復元） | 1 |
+| true, cool, 27, auto | `{"mode":"heat","temp":18}` | None | true, heat, 18, high | Heat.temp=18（復元の後に上書き） | 1 |
+| true, heat, 18, high | `{"temp":31}` | TempOutOfRange | 変わらない | なし | 0 |
+| true, heat, 18, high | `{"mode":"cool","temp":40}` | TempOutOfRange | 変わらない（モードも変えない） | なし | 0 |
+| true, heat, 18, high | `{"power":false}` | None | false, heat, 18, high | なし | 1（power を含む。停止信号） |
+| false, heat, 18, high | `{"temp":19}` | None | false, heat, 19, high | Heat.temp=19 | **0**（停止中・power を含まない） |
+| false, heat, 19, high | `{"mode":"cool","fan":"low"}` | None | false, cool, 27, low | Cool.fan=low（Cool を復元した後に上書き） | **0**（同上） |
+| false, cool, 27, low | `{"power":false}` | None | false, cool, 27, low | なし | 1（power を含む。値が同じでも送る） |
+| false, cool, 27, low | `{"power":true}` | None | true, cool, 27, low | なし | 1（停止中に変えた設定がまとめて送られる） |
+| true, cool, 27, low | `{}` | EmptyPatch | 変わらない | なし | 0 |
 
 モード切替の状態遷移（温度・風量・風向の出どころ）：
 
@@ -357,19 +362,37 @@ D-01 の `Hub::applyAc(const AcPatch&, std::string*)` の中身：
 
 ```cpp
 bool Hub::applyAc(const AcPatch& patch, std::string* error) {
+  const bool wasOn = ac_.state().power;          // 更新「前」の運転状態。apply の前に取る
   const AcError e = ac_.apply(patch);
   if (e != AcError::None) {
     if (error) *error = errorMessage(e);
     return false;                 // 状態は変わっていない。送信しない
   }
-  ir_.sendAc(ac_.state());        // 状態一式をちょうど1回。戻り値は見ない（D-01 5節）
+  const bool send = patch.power.has_value() || wasOn;
+  if (send) {
+    ir_.sendAc(ac_.state());      // 状態一式をちょうど1回。戻り値は見ない（D-01 5節）
+  }
+  // send==false：停止中に power を含まないパッチ。状態（perMode_ も）は更新済みで、送らない
   return true;
 }
 const AcState& Hub::acState() const { return ac_.state(); }
 ```
 
+送信の条件（人の判断、H-DESIGN レビュー。D-01 5節の `applyAc` のコメントと同じ）：
+
+| 更新前の power | パッチに power がある（`patch.power.has_value()`） | 検証 | 状態 | `sendAc` |
+|---|---|---|---|---|
+| どちらでも | どちらでも | 失敗 | 変えない | 0 回、戻り値 false |
+| true（運転中） | どちらでも | 通る | 更新 | 1 回、戻り値 true |
+| false（停止中） | ある（`true`／`false`） | 通る | 更新 | 1 回、戻り値 true |
+| false（停止中） | ない（温度・モード・風量・風向だけ） | 通る | 更新（モード別の記憶も） | **0 回**、戻り値 true |
+
+- 理由：再起動後は実機の状態が分からないまま `power=false` で始まる（N-BOOT）。停止中の温度変更で `power=false` を含む状態一式を送ると、動いているエアコンを止めてしまう。停止中に変えた設定は、次の `{"power":true}` でまとめて送られる。
+- 「更新前の power」は `apply` の前に取る。`{"power":false,"temp":24}` のように power を含むパッチは、更新前が運転中でも停止中でも送る。
+- スケジュール（D-03）への影響はない：「エアコン停止」は `{power:false}`、運転は `power:true` を必ず含むので、どちらも送る側に入る。
+
 - `Hub` のコンストラクタは `AcModel` を既定構築するだけで、`sendAc` を呼ばない（N-BOOT）。`AcModel` は送信の手段（`IIrSender`）を持たない。
-- スケジュールのエアコン動作（D-03）も `AcPatch` で表し、`Hub::tick` から同じ検証・更新・送信の流れ（`ac_.apply` → `ir_.sendAc`）を通す。「エアコン停止」は `{power:false}` のパッチ。検証で落ちたスケジュールをどう扱うかは D-03（登録時に `validate` で弾くのが望ましい、と申し送る）。
+- スケジュールのエアコン動作（D-03）も `AcPatch` で表し、`Hub::tick` から同じ検証・更新・送信の流れ（`ac_.apply` → 上の送信条件 → `ir_.sendAc`）を通す。「エアコン停止」は `{power:false}` のパッチ。検証で落ちたスケジュールをどう扱うかは D-03（登録時に `validate` で弾くのが望ましい、と申し送る）。
 
 ### 7. stdAc::state_t への変換（src/ir_sender_esp32.cpp、I-06 が作る）
 
@@ -489,10 +512,17 @@ stdAc::state_t toStdAc(const AcState& s) {
 - 空のパッチ：`EmptyPatch`。
 - 検証の順：温度が範囲外かつ風量が選択肢外なら `TempOutOfRange`（4節の表の順）。
 - 除湿で温度指定できない場合（5節）：`kTempSupported` はコンパイル時定数なので、今の仮値（true）では直接試せない。テストでは `cap::tempSupported(m)` が false のモードがあればそのモードで `TempNotSupported` と `hasTemp==false` を確かめ、無ければそのテストを `TEST_IGNORE_MESSAGE` で飛ばす（D1 後に自動で有効になる）。
-- 停止中の変更：`power=false` のまま `{temp}` が通り、状態が変わる。
+- 停止中の変更（AcModel 単体）：`power=false` のまま `{temp}`・`{mode}`・`{fan}` が通り、状態と `settingsFor` が変わる（`AcModel` は送信の有無を知らないので、運転中と同じ更新になる）。
 - 文字列変換：2節の表の全文字列が `parse*` → `toString` で元に戻る。表に無い文字列（`""`、`"Cool"`、`"fan"`）は nullopt。
 - エラー文言：`errorMessage` が2節の表どおり。
-- Hub と合わせて（置き場所は T-01 で決める。候補は test_api）：`applyAc` 成功で `FakeIrSender::acCount` が1増え、`lastAc` が `acState()` と一致（変えていない項目も入っている）。失敗で送信 0 回・`*error` に文言。同じ値のパッチでも送信1回。`Hub` 生成直後は `acCount==0`（N-BOOT）。
+- Hub と合わせて（置き場所は T-01 で決める。候補は test_api）：
+  - 運転中（power=true）の `applyAc` 成功、または power を含むパッチ（`{"power":true}`／`{"power":false}`）の `applyAc` 成功で `FakeIrSender::acCount` がちょうど1増え、`lastAc` が `acState()` と一致（変えていない項目も入っている）。運転中は同じ値のパッチでも送信1回。
+  - 停止中の変更で送信 0 回：`Hub` 生成直後（power=false）に `{"temp":27}`・`{"mode":"heat"}`・`{"fan":"high"}`・`{"swingV":<選択肢の値>}` をそれぞれ `applyAc` すると、戻り値 true、`acCount` は 0 のまま、`acState()` と `settingsFor` は更新後の値。
+  - 続けて `{"power":true}` を `applyAc` すると `acCount` が 1 になり、`lastAc` に停止中の変更がまとめて入っている（power=true、上で変えたモード・温度・風量）。
+  - 停止中に `{"power":false}`（今と同じ値）でも送信1回。停止中に `{"power":false,"temp":24}` でも送信1回。
+  - 運転中に `{"power":false}` で送信1回、`lastAc.power==false`。その後の `{"temp":25}` は送信 0 回。
+  - 失敗で送信 0 回・`*error` に文言（運転中・停止中の両方）。
+  - `Hub` 生成直後は `acCount==0`（N-BOOT）。
 - 初期値が選択肢・範囲の中にあること：`static_assert` なのでビルドが通ること自体で確かめる。
 
 ### 実機でしか確かめられないこと
@@ -500,6 +530,7 @@ stdAc::state_t toStdAc(const AcState& s) {
 - `pio run -e esp32` で `toStdAc` の `switch` がすべての列挙を扱ってビルドが通る（`-Wswitch` の警告が出ない）。
 - H-1（フェーズ1）：OAR-N9 の受信結果で、プロトコル名、温度の範囲、風量の段階、上下・左右風向の選択肢、除湿・自動で温度が載るか、本体タイマーの有無を記録し、`ac_capabilities.h` の値を確定する材料にする。
 - H-2（フェーズ2）：ESP32 から送った状態一式で、運転・停止・温度変更がエアコンに効く。
+- H-2：停止中に画面で温度を変えてもエアコンに何も届かず（受信音が鳴らない）、そのあと運転を押すと、変えた設定で運転が始まる。
 - H-2：温度だけ変えて何度か送っても、上下風向が勝手に切り替わらない（7節の切り替え信号の問題。`prev` を渡す方式で足りるか）。
 - H-2：除湿で送った温度の値がエアコン側で無視されるか、効いてしまうか（5節の `kTempSupported[Dry]` を決める材料）。
 - 電源投入・リセット直後にエアコンが動かない（N-BOOT）。
@@ -514,8 +545,8 @@ stdAc::state_t toStdAc(const AcState& s) {
 4. **モード別に記憶する項目。** F2 は「モードごとに最後に使った設定」とだけ書く。推測：温度・風量・上下風向・左右風向の4つをモード別に記憶し、運転（入／切）はモード別にしないとした（F2 の表の列が温度・風量・風向のため）。
 5. **除湿で「温度は送らない」の意味。** IRac の状態一式には温度欄が必ずある。推測：「利用者の指定した温度を受け付けず、状態にも表示せず、送信の温度欄には除湿の初期値を入れる」とした（5節）。実機で温度欄が効いてしまう場合の扱いは H-2 の結果を見て決め直す必要がある。
 6. **温度範囲はモードによらず1つか。** 要件は「16〜30℃（仮）」の1つだけ。推測：全モード共通の1つの範囲とした。モード別に違うと分かったら `ac_capabilities.h` を配列にする変更が要る（`cap::tempInRange` の引数にモードを足す）。
-7. **空のパッチと「同じ値だけ」のパッチ。** 要件に定めがない。推測：空（`{}`）は 400（`no ac fields`）、今と同じ値だけのパッチは受け付けて状態一式を送るとした。
-8. **停止中の設定変更。** 推測：停止中でも温度などを変えられ、`power=false` を含む状態一式を送るとした（F1「1項目を変えたときも、状態一式を送る」をそのまま適用）。停止中は送らない方がよいなら `Hub::applyAc` の1か所で変えられる。
+7. **空のパッチと「同じ値だけ」のパッチ。** 要件に定めがない。推測：空（`{}`）は 400（`no ac fields`）、今と同じ値だけのパッチは受け付ける（送信は 6節の条件どおり。運転中なら状態一式を送る）とした。
+8. **停止中の設定変更。** 人の判断（H-DESIGN レビュー）で決着：停止中に power を含まないパッチは、状態（モード別の記憶も）を更新するが送らない（`applyAc` は true）。power を含むパッチと運転中のパッチは状態一式を送る（6節）。F1「1項目を変えたときも、状態一式を送る」の例外になるので、要件の原本に追記があるとよい（人が判断）。残る推測：「power を含む」は `AcPatch::power.has_value()` で判定し、値が今と同じ `{"power":false}` でも送るとした（停止を確実に届けるため、スケジュールの「停止」とも同じ動きになる）。
 9. **HITACHI_AC424 の上下風向が「切り替え」信号であること。** IRremoteESP8266 の `IRac::hitachi424()` は上下風向を `setSwingVToggle()` で送る。F1 の「状態一式を毎回送る」と相性が悪く、毎回の送信で風向が切り替わるおそれがある。推測：`IRac::sendAc(desired, &prev)` に前回の状態を渡して抑える方式とした。抑えられるかは要確認（I-06 でソース、H-2 で実機）。抑えられない場合、上下風向の選択肢を `Off` だけにする（F1-VALUES の値で対応）ことになる見込み。
 10. **OAR-N9 の要件表に無いボタン。** F1 は「リモコンでできる操作をすべて」と書く一方、表は運転・モード・温度・風量・風向・タイマーだけ。推測：表の項目だけを作り、静音・節電などは作らないとした。H-1 で OAR-N9 に他のボタンがあると分かった場合は要件の追記が要る。
 11. **`stdAc` の `kMediumHigh`・`kUpperMiddle`。** IRremoteESP8266 の master には風量 `kMediumHigh`、上下風向 `kUpperMiddle` があるが、`^2.8.6` にあるか要確認。推測：列挙に入れず、D1 で必要になったら足すとした。
