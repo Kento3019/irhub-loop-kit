@@ -52,7 +52,7 @@
       "id": "D-02",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01"
       ],
@@ -79,10 +79,10 @@
         }
       ],
       "brief": "IRac の stdAc::state_t に合わせた状態の形、部分更新（送った項目だけ変える）の規則、モード切替時にモード別の最後の設定を復元する規則、除湿で温度を送らない場合の扱い、値の検証規則（範囲外は400）。受信結果待ちの値は ac_capabilities.h に集約する設計にする（req-index の F1-VALUES の rule）。",
-      "attempts": 0,
-      "base_commit": "9e2c51910b8b978b1637d81b9c125e2614518467",
-      "started_at": "2026-09-26T11:29:45+09:00",
-      "done_at": "2026-09-26T11:32:21+09:00",
+      "attempts": 2,
+      "base_commit": "eb32df8809b0d4c70a9221a277ed7233fbac408d",
+      "started_at": "2026-09-26T11:58:44+09:00",
+      "done_at": "2026-09-26T12:00:30+09:00",
       "human_feedback": "人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry など）は反映済みで、崩さないこと。直す点以外は変えないこと。\n直す点：loop/reviews/D-02-a1.md の推奨1（テスト観点 520〜521行の手順を1つに決め、期待値を具体値で書く）、推奨2（6節 395行：スケジュールは必ず power を含むので送信条件を通っても必ず送る、と1行足し D-03 347行と文面をそろえる）。推奨3は D-05 で対応済み。"
     },
     {

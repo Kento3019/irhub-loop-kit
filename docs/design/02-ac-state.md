@@ -392,7 +392,7 @@ const AcState& Hub::acState() const { return ac_.state(); }
 - スケジュール（D-03）への影響はない：「エアコン停止」は `{power:false}`、運転は `power:true` を必ず含むので、どちらも送る側に入る。
 
 - `Hub` のコンストラクタは `AcModel` を既定構築するだけで、`sendAc` を呼ばない（N-BOOT）。`AcModel` は送信の手段（`IIrSender`）を持たない。
-- スケジュールのエアコン動作（D-03）も `AcPatch` で表し、`Hub::tick` から同じ検証・更新・送信の流れ（`ac_.apply` → 上の送信条件 → `ir_.sendAc`）を通す。「エアコン停止」は `{power:false}` のパッチ。検証で落ちたスケジュールをどう扱うかは D-03（登録時に `validate` で弾くのが望ましい、と申し送る）。
+- スケジュールのエアコン動作（D-03）も `AcPatch` で表し、`Hub::tick` から同じ検証・更新・送信の流れ（`ac_.apply` → 上の送信条件 → `ir_.sendAc`）を通す。「エアコン停止」は `{power:false}` のパッチ。スケジュールのパッチは必ず power を含む（D-03 1.1）ので、送信条件を通しても常に送る（D-03 5.1 runOne の表「`apply` が `None` なら `ir_.sendAc(ac_.state())` を1回」と同じ結果）。`tick` に送信条件を書くかどうかは D-03 に従う。検証で落ちたスケジュールをどう扱うかは D-03（登録時に `validate` で弾くのが望ましい、と申し送る）。
 
 ### 7. stdAc::state_t への変換（src/ir_sender_esp32.cpp、I-06 が作る）
 
@@ -517,8 +517,9 @@ stdAc::state_t toStdAc(const AcState& s) {
 - エラー文言：`errorMessage` が2節の表どおり。
 - Hub と合わせて（置き場所は T-01 で決める。候補は test_api）：
   - 運転中（power=true）の `applyAc` 成功、または power を含むパッチ（`{"power":true}`／`{"power":false}`）の `applyAc` 成功で `FakeIrSender::acCount` がちょうど1増え、`lastAc` が `acState()` と一致（変えていない項目も入っている）。運転中は同じ値のパッチでも送信1回。
-  - 停止中の変更で送信 0 回：`Hub` 生成直後（power=false）に `{"temp":27}`・`{"mode":"heat"}`・`{"fan":"high"}`・`{"swingV":<選択肢の値>}` をそれぞれ `applyAc` すると、戻り値 true、`acCount` は 0 のまま、`acState()` と `settingsFor` は更新後の値。
-  - 続けて `{"power":true}` を `applyAc` すると `acCount` が 1 になり、`lastAc` に停止中の変更がまとめて入っている（power=true、上で変えたモード・温度・風量）。
+  - 停止中の変更で送信 0 回：1つの `Hub` を生成し（power=false、冷房 26℃）、同じ `Hub` で `{"temp":27}` → `{"mode":"heat"}` → `{"fan":"high"}` → `{"swingV":"auto"}` の順に `applyAc` する。各呼び出しの戻り値は true、`acCount` は 0 のまま。4回の後の期待値：`acState()` は power=false・mode=Heat・tempC=20（暖房の記憶を復元）・fan=High・swingV=Auto・swingH=`cap::kSwingHDefault`。`Hub` にはモード別の記憶を読む関数が無い（D-01 5節の参照は `acState()` だけ）ので、冷房の記憶（27）はここでは確かめない。モード別の記憶は `AcModel` 単体（上の「モード切替の復元」「停止中の変更（AcModel 単体）」）で `settingsFor` を使って確かめる。（`"high"`・`"auto"` は今の仮値の選択肢。D1 で選択肢から外れたら、選択肢の中の値に差し替える）
+  - 続けて同じ `Hub` で `{"power":true}` を `applyAc` すると `acCount` が 1 になり、`lastAc` は power=true・mode=Heat・tempC=20・fan=High・swingV=Auto・swingH=`cap::kSwingHDefault`（停止中の変更がまとめて入る。27 は冷房の記憶なので `lastAc` には入らない）。
+  - さらに続けて同じ `Hub` で `{"mode":"cool"}` を `applyAc` すると（運転中なので送信する）`acCount` が 2 になり、`lastAc` は power=true・mode=Cool・tempC=27・fan=Auto・swingV=`cap::kSwingVDefault`・swingH=`cap::kSwingHDefault`（停止中に変えた冷房の 27 が残っていることを、`Hub` から見える値で確かめる）。
   - 停止中に `{"power":false}`（今と同じ値）でも送信1回。停止中に `{"power":false,"temp":24}` でも送信1回。
   - 運転中に `{"power":false}` で送信1回、`lastAc.power==false`。その後の `{"temp":25}` は送信 0 回。
   - 失敗で送信 0 回・`*error` に文言（運転中・停止中の両方）。
