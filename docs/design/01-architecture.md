@@ -255,9 +255,10 @@ class Hub {
   // API から使う操作（詳細な引数・エラーは D-02 / D-04）
   // 戻り値＝検証に通ったか。true なら状態（モード別の記憶も含む）を更新し済み。
   // 送信の条件（人の判断、H-DESIGN レビュー。詳細は D-02）：
-  //  - patch が power を含む（power:true／power:false）、または更新前が運転中（power=true）
+  //  - patch が power を含む（AcPatch::power.has_value()。値が true か false かは見ない）、
+  //    または更新前が運転中（power=true）
   //    → sendAc(状態一式) をちょうど1回呼ぶ
-  //  - 更新前が停止中（power=false）で、patch が power を含まない（温度・モード・風量・風向だけ）
+  //  - 更新前が停止中（power=false）で、patch が power を含まない（!AcPatch::power.has_value()。温度・モード・風量・風向だけ）
   //    → 状態は更新するが sendAc は呼ばない（戻り値は true）
   //    理由：再起動後は実機の状態が分からないまま power=false で始まるため、
   //    動いているエアコンに温度変更だけで停止信号が出るのを防ぐ
@@ -303,7 +304,7 @@ sequenceDiagram
   R->>R: JSON 解析・AcPatch に変換（D-04）
   R->>H: applyAc(patch, &err)
   H->>H: 検証・部分更新（D-02）
-  alt patch が power を含む、または更新前が運転中
+  alt patch.power.has_value()、または更新前が運転中
     H->>IR: sendAc(状態一式)
     IR-->>H: true
   else 停止中に power を含まないパッチ
@@ -598,7 +599,7 @@ flowchart LR
 - N-BOOT／N-TIME：`FakeClock` が `synced=false` の間は、スケジュールを登録していても `tick()` で送信しない。
 - N-STATE：新しく生成した `Hub` の `acState()` が F2 の初期値、`schedules()` が 0 件、`lastClimate().valid == false`。
 - F5：`tick(0)` で `readCount == 1`（初回は即読む）、`tick(29999)` で 1 のまま、`tick(30000)` で 2。`millis()` の一周（`tick(0xFFFFFFF0)` の後 `tick(0x00007520)`、差 30000）でも 30 秒経過として読む。読み取り失敗（`valid=false`）が `lastClimate()` に反映される。
-- F1：運転中（power=true）の `applyAc()`、または power を含むパッチ（`power:true`／`power:false`）の `applyAc()` 1 回で `acCount` がちょうど 1 増え、`lastAc` が状態一式（変更していない項目も含む）になる。
+- F1：運転中（power=true）の `applyAc()`、または power を含むパッチ（`AcPatch::power.has_value()`。`power:true`／`power:false` のどちらも）の `applyAc()` 1 回で `acCount` がちょうど 1 増え、`lastAc` が状態一式（変更していない項目も含む）になる。
 - F1（停止中の設定変更）：停止中（power=false、初期状態を含む）に power を含まないパッチ（例：`temp` だけ、`mode` だけ）で `applyAc()` を呼ぶと、戻り値 true、`acCount` は 0 のまま（増えない）、`acState()`（モード別の記憶も含む）は更新後の値になる。続けて `power:true` だけのパッチを送ると `acCount` が 1 増え、`lastAc` にそれまでの変更がまとめて入っている。
 - F1（エラーと送信失敗）：検証エラー時は戻り値 false、送信 0 回、`acState()` は変わらない。`FakeIrSender::sendAc` が false を返す設定でも `applyAc()` は true を返し、`acState()` は更新後の値のまま。
 - F3：`pressLight(LightButton::Night)` で `lightCount == 1`、`lastLight == Night`。`parseLightButton` が6つの文字列を受け、それ以外は `nullopt`。
@@ -632,3 +633,4 @@ flowchart LR
 6. **送信 LED 2個の駆動。** ピン割り当てでは、IO4 の1本でトランジスタ1個を駆動し LED 2個を点ける構成と読める。推測：エアコン向け・照明向けを別々に送り分けず、どの送信でも両方の LED が光るとした（`IIrSender` に LED の選択は入れない）。
 7. **N-WIFI の「計30秒程度」の割り振りと、起動時の最初の接続。** 要件は回数（3回）と合計（約30秒）だけを決めている。推測：1回の試行を 10 秒待ち（`kWifiAttemptTimeoutMs = 10000`）、3回とも失敗したら再起動とした。また要件は「切れたら」とあるが、推測：起動時に一度もつながらない場合も同じ扱い（最初の接続を1回目と数え、約30秒で再起動）とした。値は `src/wifi_manager.h` の定数2つだけで変えられる。判断を src に置き native テストをしないことは人の判断（案A）による。
 8. **赤外線送信の失敗の扱い。** 要件に定めがない。推測：`IIrSender::sendAc` が false を返しても `Hub` は状態を戻さず、`applyAc` の戻り値にも含めないとした（赤外線は一方通行で、届いたかはもともと分からないため）。API の応答にどう出すか（出さないか）は D-04 で決める。
+9. **停止中の設定変更は F1 の例外。** F1（決定）は「画面で1項目を変えたときも、状態一式を送る」だが、人の判断（H-DESIGN レビュー）で送り方を変えた：停止中（power=false）に power を含まない（`!AcPatch::power.has_value()`）変更は、状態を更新するが送らない（5節の `applyAc`、詳細は D-02）。requirements.md の文面を直すかどうかは人が決める（原本への追記は人が行う）。
