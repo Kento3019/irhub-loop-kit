@@ -57,7 +57,7 @@ def git(*args: str, check: bool = True) -> str:
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     if check and r.returncode != 0:
         raise SystemExit(f"git {' '.join(args)} failed: {r.stderr.strip()}")
-    return r.stdout.strip()
+    return r.stdout.rstrip("\n")  # 先頭の空白を残す（porcelain の " M path"）
 
 
 def in_globs(path: str, globs: list[str]) -> bool:
