@@ -16,6 +16,7 @@ constexpr uint32_t kBaudRate = 115200;
 constexpr uint16_t kCaptureBufferSize = 1024;  // エアコンの長い信号用
 constexpr uint8_t kTimeout = 50;               // エアコンのパケット間の隙間（~40ms）を1通として受ける
 constexpr uint16_t kMinUnknownSize = 12;       // 短いノイズを UNKNOWN として出さない
+constexpr uint8_t kRecvTolerance = 50;         // 受信の bit mark が 436〜572µs で、基準400µsに40%(240〜560µs)では572µsが外れ HITACHI_AC296 が UNKNOWN になるため50%(200〜600µs)に広げる。space は0=250〜750µs、1=625〜1875µsで実測(362〜514/1032〜1230µs)が収まり重ならない（上限100）
 
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
 decode_results results;
@@ -28,7 +29,7 @@ void setup() {
 #if DECODE_HASH
   irrecv.setUnknownThreshold(kMinUnknownSize);
 #endif
-  irrecv.setTolerance(kTolerance);
+  irrecv.setTolerance(kRecvTolerance);
   irrecv.enableIRIn();
 }
 

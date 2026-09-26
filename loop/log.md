@@ -157,3 +157,4 @@
 - 2026-09-26T16:53:58+09:00 RESOLVE H-0 pass 人が実機で確認して pass（TC-H01：ESP32 に書き込み、pio device monitor で 'irhub phase0 tick' が1秒ごとに出る）
 - 2026-09-26T17:32:41+09:00 START I-HW1 attempt=1
 - 2026-09-26T17:34:57+09:00 DONE I-HW1 attempts=1
+- 2026-09-26T20:13:55+09:00 DECIDE D1: フェーズ1の受信結果（docs/hw/phase1-capture.md）で確定。プロトコルは HITACHI_AC296（IRac で送れるのは運転・モード・温度・風量）。モードは冷房・暖房・除湿・自動（自動は温度指定なし）、温度 16〜30℃、風量は自動・静音・弱・中・強。風向（上下・左右）と本体タイマーは作らない（タイマーは F4 で代替）。あわせて照明のリモコンが電波式と判明したため F3（照明）を対象外とする（requirements.md v0.4）。 PROTO=決定 F1-VALUES=決定 F1-TIMER=対象外 F3=対象外
