@@ -221,3 +221,29 @@
 (c) 風向は作らない。ただし手戻りを小さくするため、状態モデル（AcState の swingV/swingH）の項目は残し、選択肢は ac_capabilities.h で Off だけにする（D-02 の『抑えられない場合、上下風向の選択肢を Off だけにする』と同じ扱い。実装済みの T-02・I-01 のインターフェースは変えない）。API（/api/ac の受け付け・/api/status・acCapabilities）と画面とスケジュールでは風向を出さない・受け付けない。
 (d) F1-VALUES は確定値：モード 4 種、温度 16〜30℃（自動は温度指定なし）、風量 5 段階（Auto・Quiet・Low・Medium・High）。値は ac_capabilities.h の 1 か所（I-06 で PENDING を外して確定値にする）。
 (e) 本体タイマー（F1-TIMER）は対象外。
+- 2026-09-26T20:14:46+09:00 REOPEN T-04: 人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。
+- 2026-09-26T20:14:46+09:00 REOPEN I-03: 人の判断（D-04 審査の推奨より）：D-04 設計書の api.h は private の replaceFrom(..., ScheduleJsonKind) で ScheduleJsonKind を使うのに #include "schedule_json.h" が抜けている。実装では api.h にこの include を入れる。
+人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。
+- 2026-09-26T20:14:46+09:00 REOPEN I-04: 人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。
+人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。
+- 2026-09-26T20:14:46+09:00 REOPEN I-05: 人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。
+- 2026-09-26T20:14:46+09:00 REOPEN I-06: 人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。
+I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・暖房・除湿・自動、自動は温度指定なし、温度 16〜30℃、風量 Auto・Quiet・Low・Medium・High、風向は Off のみ）にし PENDING を外す。送信は IRac で decode_type_t::HITACHI_AC296 を使う。
+- 2026-09-26T20:17:23+09:00 REOPEN H-DESIGN: D1 確定と F3 対象外に合わせて設計書7本とテスト計画を作り直したため、人が再確認する。
+- 2026-09-26T20:17:23+09:00 START D-01 attempt=1
+- 2026-09-26T20:23:55+09:00 RETRY D-01 attempts=1 reason=review REJECT
+- 2026-09-26T20:23:55+09:00 REOPEN T-02: 人の判断（D1・F3 対象外、2026-09-26）：風向は作らず、ac_capabilities.h の風向の選択肢は Off だけになる（I-06 で確定値にする）。今のテスト TC-N06 test_apply_swingv_only（test/test_ac_state/test_main.cpp）は swingV=AcSwingV::Auto が受け付けられることを直書きで確かめており、確定値にすると落ちる。TC-N06 を TC-N07 と同じ形（cap::kSwingVDefault 以外の選択肢を探し、無ければ TEST_IGNORE）に直す。ほかのテストで F1-VALUES の仮値（風向・風量・モード・温度範囲）を直書きしているものがあれば、同じく cap:: から作る形に直す。設計書 D-01・D-02 とテスト計画 T-01（作り直し後）に従う。
+- 2026-09-26T20:24:06+09:00 START D-01 attempt=2
+- 2026-09-26T20:25:25+09:00 RETRY D-01 attempts=2 reason=verify: scope/protected（base_commit 以降に人が requirements.md を別コミットしたための誤検出。designer は触っていない）
+- 2026-09-26T20:25:25+09:00 REOPEN D-01: 人が受信を完了（docs/hw/phase1-capture.md）。D1 確定：プロトコル HITACHI_AC296（IRac で送れるのは運転・モード・温度・風量。IRac::hitachi296 は風向を扱わない）、モード 冷房(3)・暖房(6)・除湿(5)・自動(7)（自動は温度指定なし＝受信で温度欄 0）、温度 16〜30℃（リモコンは 32℃ まで出すがこの形式の温度欄は 5 ビットで 31℃ まで）、風量 自動・静音・弱・中・強。風向（上下・左右）と本体タイマーは作らない（F1-TIMER 対象外、F4 で代替）。F3 照明は電波式リモコンのため対象外（requirements.md v0.4）。
+設計の直し方（各設計書・テスト計画で自分に関わる分だけ直す。ほかは変えない）：
+(a) 照明（F3）をすべて取り除く：LightButton・pressLight・IIrSender::sendLight・light_codes・POST /api/light・画面の照明カード・スケジュールの target=light・照明のテストケース・照明の性能観点・フェーズ6の照明の確認。N-BOOT の「照明に送らない」はエアコンだけにする。
+(b) プロトコルを HITACHI_AC296 に直す（HITACHI_AC424・上下風向の切り替え信号の懸念は解消済み）。受信時の信号には押したボタンを表すバイト（state[11]：運転 0x13、モード 0x41、風量 0x42、温度 0x43/0x44）があるが IRac は埋めないので、エアコンが受け付けるかは H-2 で確かめる、と書く。
+(c) 風向は作らない。ただし手戻りを小さくするため、状態モデル（AcState の swingV/swingH）の項目は残し、選択肢は ac_capabilities.h で Off だけにする（D-02 の『抑えられない場合、上下風向の選択肢を Off だけにする』と同じ扱い。実装済みの T-02・I-01 のインターフェースは変えない）。API（/api/ac の受け付け・/api/status・acCapabilities）と画面とスケジュールでは風向を出さない・受け付けない。
+(d) F1-VALUES は確定値：モード 4 種、温度 16〜30℃（自動は温度指定なし）、風量 5 段階（Auto・Quiet・Low・Medium・High）。値は ac_capabilities.h の 1 か所（I-06 で PENDING を外して確定値にする）。
+(e) 本体タイマー（F1-TIMER）は対象外。
+段取りからの連絡：前回の作業（審査 loop/reviews/D-01-a1.md の必須1件・推奨3件を直した版）は loop/drafts/D-01-reopen2-a2.md に退避してある。base_commit を付け直すために開き直しただけなので、その中身を docs/design/01-architecture.md に戻せばよい。
+- 2026-09-26T20:25:25+09:00 START D-01 attempt=1
+- 2026-09-26T20:30:49+09:00 RETRY D-01 attempts=1 reason=review REJECT
+- 2026-09-26T20:30:49+09:00 START D-01 attempt=2
+- 2026-09-26T20:32:22+09:00 DONE D-01 attempts=2
