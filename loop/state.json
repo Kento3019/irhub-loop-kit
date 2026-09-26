@@ -163,7 +163,7 @@
       "id": "D-05",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-04"
       ],
@@ -191,10 +191,10 @@
         }
       ],
       "brief": "画面構成、各操作で呼ぶAPI、状態の再取得タイミング（F5 30秒）、NTP未取得の警告表示、エラー表示、エクスポート（ファイル保存）とインポート（ファイル選択）の流れ。web/index.html を唯一のソースにし、ビルド時に C++ ヘッダへ埋め込む方式を決める。SwitchBot のロゴ・アイコン・名称・配色は使わない。",
-      "attempts": 0,
-      "base_commit": "0ccc9b98504e088cc2704d674faa6e5ffe54a59a",
-      "started_at": "2026-09-26T11:32:21+09:00",
-      "done_at": "2026-09-26T11:36:16+09:00",
+      "attempts": 1,
+      "base_commit": "6c6f3b63e539b3a6fd48bec7d5e3d2c5779dfa36",
+      "started_at": "2026-09-26T12:10:37+09:00",
+      "done_at": "2026-09-26T12:12:19+09:00",
       "human_feedback": "人の判断（H-DESIGN レビュー2回目）：最新の審査の推奨をすべて反映する。前回までの人の判断（停止中は power を含まないパッチを送らない、エクスポートは fetch＋Blob、Tailscale の Disable key expiry など）は反映済みで、崩さないこと。直す点以外は変えないこと。\n直す点：loop/reviews/D-05-a1.md の推奨1（8.2：fetchRaw が 200 で #conn-error を隠した後に本文の読み取りが失敗した場合の扱いを書く）、推奨3（8.2：Content-Type を付ける／付けないの字面の食い違いをなくす。export の fetchRaw(\"GET\", ...) も含めて）。推奨2は D-04 で、推奨4は T-01 で対応する。\nあわせて loop/reviews/D-04-a1.md の推奨3：要件への疑問7の末尾の「D-04 8節に古い案内が残っている」は D-04 の修正で古くなったので消す。"
     },
     {
