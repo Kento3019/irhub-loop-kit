@@ -253,7 +253,8 @@ class Hub {
   void tick(uint32_t nowMs);
 
   // API から使う操作（詳細な引数・エラーは D-02 / D-04）
-  // 戻り値＝検証に通ったか。true なら状態（モード別の記憶も含む）を更新し済み。
+  // 戻り値＝検証に通ったか。true なら内部の状態（モード別の記憶も含む）を更新し済み。
+  // acState() が返すのは現在の AcState だけで、モード別の記憶は Hub の外から読めない。
   // 送信の条件（人の判断、H-DESIGN レビュー。詳細は D-02）：
   //  - patch が power を含む（AcPatch::power.has_value()。値が true か false かは見ない）、
   //    または更新前が運転中（power=true）
@@ -600,7 +601,7 @@ flowchart LR
 - N-STATE：新しく生成した `Hub` の `acState()` が F2 の初期値、`schedules()` が 0 件、`lastClimate().valid == false`。
 - F5：`tick(0)` で `readCount == 1`（初回は即読む）、`tick(29999)` で 1 のまま、`tick(30000)` で 2。`millis()` の一周（`tick(0xFFFFFFF0)` の後 `tick(0x00007520)`、差 30000）でも 30 秒経過として読む。読み取り失敗（`valid=false`）が `lastClimate()` に反映される。
 - F1：運転中（power=true）の `applyAc()`、または power を含むパッチ（`AcPatch::power.has_value()`。`power:true`／`power:false` のどちらも）の `applyAc()` 1 回で `acCount` がちょうど 1 増え、`lastAc` が状態一式（変更していない項目も含む）になる。
-- F1（停止中の設定変更）：停止中（power=false、初期状態を含む）に power を含まないパッチ（例：`temp` だけ、`mode` だけ）で `applyAc()` を呼ぶと、戻り値 true、`acCount` は 0 のまま（増えない）、`acState()`（モード別の記憶も含む）は更新後の値になる。続けて `power:true` だけのパッチを送ると `acCount` が 1 増え、`lastAc` にそれまでの変更がまとめて入っている。
+- F1（停止中の設定変更）：停止中（power=false、初期状態を含む）に power を含まないパッチ（例：`temp` だけ、`mode` だけ）で `applyAc()` を呼ぶと、戻り値 true、`acCount` は 0 のまま（増えない）、`acState()` は更新後の値になる（`acState()` は現在の `AcState` だけを返し、モード別の記憶は返さない。モード別の記憶は、D-02 のテスト観点の手順（停止中に temp→mode→fan→swingV を変え、power:true の後に運転中にモードを切り替える）のように、切り替え後の `lastAc` で間接に確かめる）。続けて `power:true` だけのパッチを送ると `acCount` が 1 増え、`lastAc` にそれまでの変更がまとめて入っている。
 - F1（エラーと送信失敗）：検証エラー時は戻り値 false、送信 0 回、`acState()` は変わらない。`FakeIrSender::sendAc` が false を返す設定でも `applyAc()` は true を返し、`acState()` は更新後の値のまま。
 - F3：`pressLight(LightButton::Night)` で `lightCount == 1`、`lastLight == Night`。`parseLightButton` が6つの文字列を受け、それ以外は `nullopt`。
 - API：`ApiRouter::handle` がルーティング表の各メソッド・パスを該当処理へ振り分ける（中身の検証は test_api、D-04）。
