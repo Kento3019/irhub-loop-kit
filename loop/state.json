@@ -124,7 +124,7 @@
       "id": "D-04",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-02",
         "D-03"
@@ -153,10 +153,10 @@
         }
       ],
       "brief": "全エンドポイントのリクエスト／レスポンスのJSON、各フィールドの型と検証、エラー（400 + {error}）の一覧。ハンドラは『メソッド・パス・本文 → ステータス・本文』の HTTP 非依存関数として lib/core に置き、src/ は WebServer との橋渡しだけにする。/api/status に選択肢（capabilities）を含めるかをここで決める。",
-      "attempts": 0,
-      "base_commit": "f6a2b0f746a751883a9afd8d3c7625bffaa9be0f",
-      "started_at": "2026-09-26T12:09:11+09:00",
-      "done_at": "2026-09-26T12:10:37+09:00",
+      "attempts": 1,
+      "base_commit": "1f16bdf2ae82243e7a2cb5204c6875ac17c8814e",
+      "started_at": "2026-09-26T21:42:51+09:00",
+      "done_at": "2026-09-26T21:49:33+09:00",
       "human_feedback": "人が受信を完了（docs/hw/phase1-capture.md）。D1 確定：プロトコル HITACHI_AC296（IRac で送れるのは運転・モード・温度・風量。IRac::hitachi296 は風向を扱わない）、モード 冷房(3)・暖房(6)・除湿(5)・自動(7)（自動は温度指定なし＝受信で温度欄 0）、温度 16〜30℃（リモコンは 32℃ まで出すがこの形式の温度欄は 5 ビットで 31℃ まで）、風量 自動・静音・弱・中・強。風向（上下・左右）と本体タイマーは作らない（F1-TIMER 対象外、F4 で代替）。F3 照明は電波式リモコンのため対象外（requirements.md v0.4）。\n設計の直し方（各設計書・テスト計画で自分に関わる分だけ直す。ほかは変えない）：\n(a) 照明（F3）をすべて取り除く：LightButton・pressLight・IIrSender::sendLight・light_codes・POST /api/light・画面の照明カード・スケジュールの target=light・照明のテストケース・照明の性能観点・フェーズ6の照明の確認。N-BOOT の「照明に送らない」はエアコンだけにする。\n(b) プロトコルを HITACHI_AC296 に直す（HITACHI_AC424・上下風向の切り替え信号の懸念は解消済み）。受信時の信号には押したボタンを表すバイト（state[11]：運転 0x13、モード 0x41、風量 0x42、温度 0x43/0x44）があるが IRac は埋めないので、エアコンが受け付けるかは H-2 で確かめる、と書く。\n(c) 風向は作らない。ただし手戻りを小さくするため、状態モデル（AcState の swingV/swingH）の項目は残し、選択肢は ac_capabilities.h で Off だけにする（D-02 の『抑えられない場合、上下風向の選択肢を Off だけにする』と同じ扱い。実装済みの T-02・I-01 のインターフェースは変えない）。API（/api/ac の受け付け・/api/status・acCapabilities）と画面とスケジュールでは風向を出さない・受け付けない。\n(d) F1-VALUES は確定値：モード 4 種、温度 16〜30℃（自動は温度指定なし）、風量 5 段階（Auto・Quiet・Low・Medium・High）。値は ac_capabilities.h の 1 か所（I-06 で PENDING を外して確定値にする）。\n(e) 本体タイマー（F1-TIMER）は対象外。"
     },
     {
