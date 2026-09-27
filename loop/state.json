@@ -43,10 +43,10 @@
       ],
       "brief": "lib/core（Arduino非依存・native でテストできる純C++17＋ArduinoJson）と src/（Arduino・WebServer・IRremoteESP8266・DHT20・WiFi に触る層）の境界を決める。赤外線送信・時計・センサーは lib/core 側ではインターフェースにし、native テストではフェイクに差し替える前提。モジュール一覧、各モジュールの責務、依存方向の図（mermaid可）、ファイル配置を書く。",
       "attempts": 1,
-      "base_commit": "c3978b04f52bca457afa2d4eb22711a1bbf7bba6",
-      "started_at": "2026-09-27T09:22:22+09:00",
-      "human_feedback": "人の判断（2026-09-27、T-04 審査 loop/reviews/T-04-a1.md の申し送りより）：D-01 を D-04 に合わせて最新化する。(1) 6節の入出力の実例：成功例を D-04 4節の {\"ac\":{\"power\":...,\"mode\":...,\"temp\":...,\"fan\":...}} に、風向の拒否を D-04 4節・10.3 の unknown key \"swingV\" に直す。疑問9 の同じ推測も直す（または『値の形は D-04 が正』と明記）。(2) 6節の ApiRouter::handle のコメント『\"/api/\" で始まるパスだけを扱う』を D-04 10.1・11節（/favicon.ico や GET 以外の / も ApiRouter に来て 404）に合わせる。実装（lib/core/src/api.cpp）とテスト（test/test_api）はすでに D-04 に従っているので、それらと食い違わないこと。これ以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断は反映済みなので崩さない。",
-      "done_at": "2026-09-27T09:24:21+09:00"
+      "base_commit": "4d71e29929b907b392321594f664b1ae3b3f01af",
+      "started_at": "2026-09-27T22:00:40+09:00",
+      "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 docs/design/01-architecture.md に残る IO4 の記述（528行の kIrSend = 4 の例・コメント、621行の『IO4 から IRac』）を IO23 に直す。ピンの変更以外は変えない。GPIO23 はリセット直後にプルダウンされない点（ir.begin() まで 2SC1815 のベースが浮く。変調信号は出ないので N-BOOT には反しない。外付けプルダウンは人がハード側で判断）は、ピン表の近くに1行の注記として書いてよい。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。",
+      "done_at": "2026-09-27T22:03:07+09:00"
     },
     {
       "id": "D-02",
@@ -201,7 +201,7 @@
       "id": "D-06",
       "type": "design",
       "agent": "designer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "D-01"
       ],
@@ -230,11 +230,11 @@
         }
       ],
       "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。",
-      "attempts": 1,
+      "attempts": 0,
       "base_commit": "6bf14641f596e6411aaf42457584b45e2addd0b7",
       "started_at": "2026-09-26T21:59:24+09:00",
       "done_at": "2026-09-26T22:07:01+09:00",
-      "human_feedback": "人が受信を完了（docs/hw/phase1-capture.md）。D1 確定：プロトコル HITACHI_AC296（IRac で送れるのは運転・モード・温度・風量。IRac::hitachi296 は風向を扱わない）、モード 冷房(3)・暖房(6)・除湿(5)・自動(7)（自動は温度指定なし＝受信で温度欄 0）、温度 16〜30℃（リモコンは 32℃ まで出すがこの形式の温度欄は 5 ビットで 31℃ まで）、風量 自動・静音・弱・中・強。風向（上下・左右）と本体タイマーは作らない（F1-TIMER 対象外、F4 で代替）。F3 照明は電波式リモコンのため対象外（requirements.md v0.4）。\n設計の直し方（各設計書・テスト計画で自分に関わる分だけ直す。ほかは変えない）：\n(a) 照明（F3）をすべて取り除く：LightButton・pressLight・IIrSender::sendLight・light_codes・POST /api/light・画面の照明カード・スケジュールの target=light・照明のテストケース・照明の性能観点・フェーズ6の照明の確認。N-BOOT の「照明に送らない」はエアコンだけにする。\n(b) プロトコルを HITACHI_AC296 に直す（HITACHI_AC424・上下風向の切り替え信号の懸念は解消済み）。受信時の信号には押したボタンを表すバイト（state[11]：運転 0x13、モード 0x41、風量 0x42、温度 0x43/0x44）があるが IRac は埋めないので、エアコンが受け付けるかは H-2 で確かめる、と書く。\n(c) 風向は作らない。ただし手戻りを小さくするため、状態モデル（AcState の swingV/swingH）の項目は残し、選択肢は ac_capabilities.h で Off だけにする（D-02 の『抑えられない場合、上下風向の選択肢を Off だけにする』と同じ扱い。実装済みの T-02・I-01 のインターフェースは変えない）。API（/api/ac の受け付け・/api/status・acCapabilities）と画面とスケジュールでは風向を出さない・受け付けない。\n(d) F1-VALUES は確定値：モード 4 種、温度 16〜30℃（自動は温度指定なし）、風量 5 段階（Auto・Quiet・Low・Medium・High）。値は ac_capabilities.h の 1 か所（I-06 で PENDING を外して確定値にする）。\n(e) 本体タイマー（F1-TIMER）は対象外。"
+      "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 docs/design/06-runtime.md に残る IO4 の記述（29行・104行・118行・182行）を IO23 に直す。118行の理由『IO4 を早く LOW に固定して、トランジスタのベースを浮かせたままにしない』は、GPIO23 はリセット直後にプルダウンされないため ir.begin() までベースが浮きうる（変調信号は出ないので N-BOOT には反しない。外付けプルダウンは人がハード側で判断）と正確に書く。ピンの変更以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。"
     },
     {
       "id": "D-07",
@@ -270,7 +270,7 @@
       "id": "T-01",
       "type": "test-design",
       "agent": "test-designer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "D-02",
         "D-03",
@@ -311,11 +311,11 @@
         }
       ],
       "brief": "設計書から、native 単体テストのケース（TC-Nxx）と実機確認のケース（TC-Hxx）を作る。各ケースに要件ID、前提、操作、期待結果。実機ケースはフェーズ0〜6の完成判定を含め、H-* の人間ゲートで使うチェックリストとして読める形にする。",
-      "attempts": 3,
+      "attempts": 0,
       "base_commit": "5812e70b050e615f5112c6d27b9052816d80262f",
       "started_at": "2026-09-26T22:44:54+09:00",
       "done_at": "2026-09-26T22:48:25+09:00",
-      "human_feedback": "人が受信を完了（docs/hw/phase1-capture.md）。D1 確定：プロトコル HITACHI_AC296（IRac で送れるのは運転・モード・温度・風量。IRac::hitachi296 は風向を扱わない）、モード 冷房(3)・暖房(6)・除湿(5)・自動(7)（自動は温度指定なし＝受信で温度欄 0）、温度 16〜30℃（リモコンは 32℃ まで出すがこの形式の温度欄は 5 ビットで 31℃ まで）、風量 自動・静音・弱・中・強。風向（上下・左右）と本体タイマーは作らない（F1-TIMER 対象外、F4 で代替）。F3 照明は電波式リモコンのため対象外（requirements.md v0.4）。\n設計の直し方（各設計書・テスト計画で自分に関わる分だけ直す。ほかは変えない）：\n(a) 照明（F3）をすべて取り除く：LightButton・pressLight・IIrSender::sendLight・light_codes・POST /api/light・画面の照明カード・スケジュールの target=light・照明のテストケース・照明の性能観点・フェーズ6の照明の確認。N-BOOT の「照明に送らない」はエアコンだけにする。\n(b) プロトコルを HITACHI_AC296 に直す（HITACHI_AC424・上下風向の切り替え信号の懸念は解消済み）。受信時の信号には押したボタンを表すバイト（state[11]：運転 0x13、モード 0x41、風量 0x42、温度 0x43/0x44）があるが IRac は埋めないので、エアコンが受け付けるかは H-2 で確かめる、と書く。\n(c) 風向は作らない。ただし手戻りを小さくするため、状態モデル（AcState の swingV/swingH）の項目は残し、選択肢は ac_capabilities.h で Off だけにする（D-02 の『抑えられない場合、上下風向の選択肢を Off だけにする』と同じ扱い。実装済みの T-02・I-01 のインターフェースは変えない）。API（/api/ac の受け付け・/api/status・acCapabilities）と画面とスケジュールでは風向を出さない・受け付けない。\n(d) F1-VALUES は確定値：モード 4 種、温度 16〜30℃（自動は温度指定なし）、風量 5 段階（Auto・Quiet・Low・Medium・High）。値は ac_capabilities.h の 1 か所（I-06 で PENDING を外して確定値にする）。\n(e) 本体タイマー（F1-TIMER）は対象外。"
+      "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 docs/test/test-plan.md 427行（フェーズ2の前提）の『IO4→1kΩ→2SC1815』を IO23 に直す。ほかに IO4 を前提にした記述があればそれも IO23 に。ピンの変更以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。"
     },
     {
       "id": "H-DESIGN",
@@ -728,7 +728,7 @@
       "id": "I-06",
       "type": "impl",
       "agent": "implementer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "H-1",
         "I-05"
@@ -761,8 +761,8 @@
         }
       ],
       "brief": "docs/hw/phase1-capture.md と D1 の決定に従い、エアコンは IRac で状態一式を送り、照明は記録した信号を送る。F1-VALUES を確定値に置き換え PENDING を外す（D1 が closed のときだけ）。シリアルからボタンを送れるデバッグ機能を付け、フェーズ2の実機確認に使えるようにする。",
-      "attempts": 1,
-      "human_feedback": "人の判断（2026-09-27、実機の軽い送信確認の後）：src/pins.h の kIrSend を 4 から 23 に変える（IO23）。変更はこの1か所だけ。ほかのファイル（ir_sender_esp32.cpp・ac_capabilities.h・platformio.ini など）は変えない。pins.h のコメントの『IO4』の表記も IO23 に合わせてよい。設計書・テスト計画の IO4 の記述は後で人が判断するので、この項目では触らない。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。",
+      "attempts": 0,
+      "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 コードのコメントに残る IO4 を IO23 に直す：src/main.cpp:37、src/ir_sender_esp32.h:13、src/ir_sender_esp32.cpp:60。コメントだけを直し、コード（ピン番号・処理）は変えない。pins.h は直し済みなので触らない。",
       "base_commit": "d1d65b88bc85d04e42eea46eff31ac1a8cdf8fce",
       "started_at": "2026-09-27T21:28:45+09:00",
       "done_at": "2026-09-27T21:30:36+09:00"

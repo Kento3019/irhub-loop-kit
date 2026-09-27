@@ -525,13 +525,15 @@ struct FakeClimateSensor : irhub::IClimateSensor {
 #include <cstdint>
 
 namespace irhub::pins {
-constexpr uint8_t kIrSend = 4;   // IO4 → 1kΩ → 2SC1815 ベース。赤外線 LED（エアコン向き。2個目は予備）
-constexpr uint8_t kI2cSda = 21;  // DHT20 SDA（10kΩ で 3.3V へプルアップ）
-constexpr uint8_t kI2cScl = 22;  // DHT20 SCL（10kΩ で 3.3V へプルアップ）
-constexpr uint8_t kDht20Addr = 0x38;  // DHT20 の I2C アドレス（固定）
+constexpr uint8_t kIrSend = 23;       // IO23 → 1kΩ → 2SC1815 ベース。赤外線 LED（エアコン向き。2個目は予備）
+constexpr uint8_t kI2cSda = 21;       // DHT20 SDA（10kΩ で 3.3V へプルアップ）
+constexpr uint8_t kI2cScl = 22;       // DHT20 SCL（10kΩ で 3.3V へプルアップ）
+constexpr uint8_t kDht20Addr = 0x38;  // DHT20 の I2C アドレス（固定。ライブラリの中で使われる）
 // IO14（受信モジュール OUT）は本体ファームでは使わない。フェーズ1の env:dump（tools/phase1_dump/）だけが使う
 }  // namespace irhub::pins
 ```
+
+注記：GPIO23 はリセット直後にプルダウンされないため、`ir.begin()` までは 2SC1815 のベースが浮く。変調信号は出ないので N-BOOT には反しない（外付けプルダウンを付けるかは人がハード側で判断する）。
 
 ピン番号を書いてよいのは `src/pins.h` と `tools/phase1_dump/` だけ。
 
@@ -618,7 +620,7 @@ flowchart LR
 - 電源投入・リセット直後に赤外線が出ない（スマホのカメラで LED を見る、または別の受信機で確認）。
 - `GET /` でスマホに画面が出る（埋め込み HTML が壊れていない）。照明カードと風向の操作が無い。
 - DHT20 が 0x38 で応答し、30 秒ごとに値が更新される。
-- IO4 から `IRac`（HITACHI_AC296）で送った状態一式でエアコンが運転・停止・モード・温度・風量を受け付ける（フェーズ2／H-2）。特に、`IRac` が押したボタンのバイト（`state[11]`）を埋めないまま送っても受け付けるか。受信機で送信信号をダンプし、`state[11]` の値を記録する。
+- IO23 から `IRac`（HITACHI_AC296）で送った状態一式でエアコンが運転・停止・モード・温度・風量を受け付ける（フェーズ2／H-2）。特に、`IRac` が押したボタンのバイト（`state[11]`）を埋めないまま送っても受け付けるか。受信機で送信信号をダンプし、`state[11]` の値を記録する。
 - 自動モード（温度指定なし）で送ったときにエアコンが受け付けるか（H-2）。特に、温度欄が 1（IRac の `kHitachiAc296TempAuto`）で純正リモコンの 0 と違っても受け付けるか。受信機で送信信号をダンプし、温度欄の値を記録する。受け付けなければ `ir_sender_esp32.cpp` の中だけで対処する（`state[11]` と同じ扱い）。
 - N-WIFI（`src/wifi_manager`、6a 節の表）。シリアルに試行回数と時刻を出して確かめる：
   - 運用中にルーターの電源を切ると、約10秒ごとに再接続を試み、3回目から約10秒後（切断から約30秒）に再起動する。
