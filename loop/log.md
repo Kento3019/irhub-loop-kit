@@ -327,3 +327,5 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-27T23:59:03+09:00 RETRY T-01 attempts=1 reason=review REJECT
 - 2026-09-27T23:59:03+09:00 START T-01 attempt=2
 - 2026-09-28T00:00:35+09:00 DONE T-01 attempts=2
+- 2026-09-28T00:00:35+09:00 START T-02 attempt=1
+- 2026-09-28T00:02:32+09:00 DONE T-02 attempts=1

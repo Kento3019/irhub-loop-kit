@@ -1,8 +1,10 @@
 // test_ac_state：エアコン状態モデル（AcModel）、cap::、文字列変換の単体テスト
 // 根拠：docs/design/02-ac-state.md（D-02）、docs/test/test-plan.md「A. test/test_ac_state」
 //       （TC-N01〜TC-N34、TC-N202〜TC-N204）
-// F1-VALUES の値（温度範囲・モード別の温度指定可否・風量と風向の選択肢）と仮(F2)の初期値は
-// 直書きせず、cap:: と initialSettings() から作る（テスト計画 方針2）。
+// F1-VALUES の値（温度範囲・モード別の温度指定可否・風量と風向の選択肢）は直書きせず cap:: から作る。
+// F2 の初期値（D2 で決定、2026-09-27：冷房 26・暖房 22・除湿 26、風量はすべて Auto）は、
+// 冷房 26℃・風量 Auto を除き initialSettings() から取る。確定値そのものは TC-N02 で1度だけ
+// 直書きで確かめる（テスト計画 方針2）。
 #include <unity.h>
 
 #include <optional>
@@ -49,8 +51,7 @@ static AcPatch patchFan(AcFan v) { AcPatch p; p.fan = v; return p; }
 static AcPatch patchSwingV(AcSwingV v) { AcPatch p; p.swingV = v; return p; }
 static AcPatch patchSwingH(AcSwingH v) { AcPatch p; p.swingH = v; return p; }
 
-// 方針2の表の名前を求める。見つからなければ false
-
+// ---- 方針2の表の名前を求める（find*）。見つからなければ false ----------------------------
 // F1：cap::kFanChoices のうち Auto でない最初の値
 static bool findF1(AcFan* out) {
   for (int i = 0; i < cap::kFanChoiceCount; ++i) {
@@ -161,9 +162,15 @@ void test_initial_settings_per_mode() {
     assertSettingsEq(initialSettings(kAllModes[i]), m.settingsFor(kAllModes[i]),
                      "settingsFor == initialSettings");
   }
-  // 冷房（決定値）は直書きでも確かめる
-  TEST_ASSERT_EQUAL_INT(26, m.settingsFor(AcMode::Cool).tempC);
-  ASSERT_ENUM(AcFan::Auto, m.settingsFor(AcMode::Cool).fan);
+  // F2 の確定値（D2 決定）を initialSettings に対して1度だけ直書きで確かめる。
+  // 自動の tempC は温度指定なしで使わない値なので確かめない。
+  TEST_ASSERT_EQUAL_INT_MESSAGE(26, initialSettings(AcMode::Cool).tempC, "Cool tempC");
+  ASSERT_ENUM_MSG(AcFan::Auto, initialSettings(AcMode::Cool).fan, "Cool fan");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(22, initialSettings(AcMode::Heat).tempC, "Heat tempC");
+  ASSERT_ENUM_MSG(AcFan::Auto, initialSettings(AcMode::Heat).fan, "Heat fan");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(26, initialSettings(AcMode::Dry).tempC, "Dry tempC");
+  ASSERT_ENUM_MSG(AcFan::Auto, initialSettings(AcMode::Dry).fan, "Dry fan");
+  ASSERT_ENUM_MSG(AcFan::Auto, initialSettings(AcMode::Auto).fan, "Auto fan");
 }
 
 // ---- 部分更新（1項目だけ） ------------------------------------------------------------
@@ -254,7 +261,7 @@ void test_transition_table() {
   REQUIRE_TEMP_MODE(AcMode::Heat);
   AcModel m;
 
-  const int heatInit = initialSettings(AcMode::Heat).tempC;  // 仮(F2)。今は 20
+  const int heatInit = initialSettings(AcMode::Heat).tempC;  // F2（D2 決定）で 22
 
   AcPatch r4; r4.tempC = 22; r4.fan = AcFan::High;
   AcPatch r6; r6.mode = AcMode::Heat; r6.tempC = 18;
