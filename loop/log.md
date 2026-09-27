@@ -299,3 +299,6 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-27T09:49:13+09:00 DONE D-05 attempts=1
 - 2026-09-27T09:50:46+09:00 START I-06 attempt=1
 - 2026-09-27T09:55:11+09:00 DONE I-06 attempts=1
+- 2026-09-27T21:28:45+09:00 REOPEN I-06: 人の判断（2026-09-27、実機の軽い送信確認の後）：src/pins.h の kIrSend を 4 から 23 に変える（IO23）。変更はこの1か所だけ。ほかのファイル（ir_sender_esp32.cpp・ac_capabilities.h・platformio.ini など）は変えない。pins.h のコメントの『IO4』の表記も IO23 に合わせてよい。設計書・テスト計画の IO4 の記述は後で人が判断するので、この項目では触らない。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。
+- 2026-09-27T21:28:45+09:00 START I-06 attempt=1
+- 2026-09-27T21:30:36+09:00 DONE I-06 attempts=1

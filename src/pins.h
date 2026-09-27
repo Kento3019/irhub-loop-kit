@@ -3,7 +3,7 @@
 #include <cstdint>
 
 namespace irhub::pins {
-constexpr uint8_t kIrSend = 4;        // IO4 → 1kΩ → 2SC1815 ベース。赤外線 LED（エアコン向き。2個目は予備）
+constexpr uint8_t kIrSend = 23;       // IO23 → 1kΩ → 2SC1815 ベース。赤外線 LED（エアコン向き。2個目は予備）
 constexpr uint8_t kI2cSda = 21;       // DHT20 SDA（10kΩ で 3.3V へプルアップ）
 constexpr uint8_t kI2cScl = 22;       // DHT20 SCL（10kΩ で 3.3V へプルアップ）
 constexpr uint8_t kDht20Addr = 0x38;  // DHT20 の I2C アドレス（固定。ライブラリの中で使われる）
