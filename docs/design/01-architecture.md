@@ -324,7 +324,9 @@ struct ApiResponse {
 class ApiRouter {
  public:
   explicit ApiRouter(Hub& hub);
-  // "/api/" で始まるパスだけを扱う。GET / は扱わない（web_bridge が HTML を返す）
+  // web_bridge の onNotFound から来るすべてのリクエストを扱う（"/api/" 以外も来る）。
+  // GET / だけは web_bridge が HTML を返すので来ない。GET 以外の "/"、"/favicon.ico"、"/api/light" など
+  // ルーティング表に無いパスは 404（D-04 10.1・11節）
   ApiResponse handle(const ApiRequest& req);
  private:
   Hub& hub_;
@@ -346,19 +348,19 @@ class ApiRouter {
 
 `POST /api/light` は作らない（F3 対象外）。上の表に無いパス・メソッドは D-04 のエラー（404 など）で返す。
 
-入出力の実例（値の形は D-04 で確定）：
+入出力の実例（値の形と文言は D-04 4節・10節が正。ここは D-04 に合わせた写し）：
 
 ```json
 // ApiRequest
 { "method": "POST", "path": "/api/ac", "body": "{\"power\":true,\"mode\":\"cool\",\"temp\":26,\"fan\":\"auto\"}" }
-// ApiResponse（成功）
-{ "status": 200, "contentType": "application/json", "body": "{\"ok\":true}", "downloadFilename": "" }
+// ApiResponse（成功：更新後の状態を /api/status の "ac" と同じ形で返す。D-04 4節）
+{ "status": 200, "contentType": "application/json", "body": "{\"ac\":{\"power\":true,\"mode\":\"cool\",\"temp\":26,\"fan\":\"auto\"}}", "downloadFilename": "" }
 // ApiResponse（失敗：温度が範囲外）
 { "status": 400, "contentType": "application/json", "body": "{\"error\":\"temp out of range\"}", "downloadFilename": "" }
 // ApiRequest（風向を含む：受け付けない。7a 節）
 { "method": "POST", "path": "/api/ac", "body": "{\"swingV\":\"auto\"}" }
-// ApiResponse
-{ "status": 400, "contentType": "application/json", "body": "{\"error\":\"unknown field: swingV\"}", "downloadFilename": "" }
+// ApiResponse（ほかの知らないキーと同じ unknown key。D-04 4節・10.3）
+{ "status": 400, "contentType": "application/json", "body": "{\"error\":\"unknown key \\\"swingV\\\"\"}", "downloadFilename": "" }
 ```
 
 ### 6a. Wi-Fi の接続と再接続（src/wifi_manager、N-WIFI）
@@ -638,7 +640,7 @@ flowchart LR
 6. **N-WIFI の「計30秒程度」の割り振りと、起動時の最初の接続。** 推測：1回の試行を 10 秒待ち（`kWifiAttemptTimeoutMs = 10000`）、3回とも失敗したら再起動とした。推測：起動時に一度もつながらない場合も同じ扱い（最初の接続を1回目と数え、約30秒で再起動）とした。判断を src に置き native テストをしないことは人の判断（案A）による。
 7. **赤外線送信の失敗の扱い。** 要件に定めがない。推測：`IIrSender::sendAc` が false を返しても `Hub` は状態を戻さず、`applyAc` の戻り値にも含めないとした。API の応答にどう出すかは D-04。
 8. **原本 v0.4 に風向・旧プロトコルの記述が残っている。** 4章の画面構成「エアコンカード：運転／停止、モード、温度、風量、風向」、5章の `POST /api/ac` の例の `swingV`・`swingH`、F2 の表の「風向：機種の標準」、8章・9章の「仮：HITACHI_AC424」。推測：D1 の結果（風向は作らない、HITACHI_AC296）と F1 の表を優先し、画面・API に風向を出さないとした。原本の直しは人が行う。
-9. **API で風向を「受け付けない」ときの応答。** 要件に定めがない。推測：`swingV`・`swingH` を含む `POST /api/ac` は 400（`{"error":"unknown field: swingV"}` の形）とし、黙って無視はしないとした。文言と、ほかの未知のキーの扱いは D-04 で決める。
+9. **API で風向を「受け付けない」ときの応答。** 要件に定めがない。推測：`swingV`・`swingH` を含む `POST /api/ac` は 400 とし、黙って無視はしないとした。文言はほかの知らないキーと同じ `unknown key "swingV"`（本文 `{"error":"unknown key \"swingV\""}`）で、値の形と文言は D-04（4節・10.3）が正。
 10. **静音の風量の対応先。** D1 の風量は「自動・静音・弱・中・強」だが、D-02 の `AcFan`（`stdAc::fanspeed_t` の写し）に `Quiet` は無い。推測：インターフェースを変えずに、静音を既存の `AcFan::Min` に当てるとした（API の文字列は D-02／D-04）。`AcFan::Min`→`stdAc::fanspeed_t::kMin`→`kHitachiAc296FanSilent` になることは取得済みのライブラリの `IRHitachiAc296::convertFan` で確かめた（7節）。残る疑問は、`AcFan` の名前（Min）と要件の言葉（静音）がずれていることだけ。
 11. **req-index の F1-VALUES の rule が古い。** status は「決定」だが rule は「仮値で置き PENDING を付ける」のまま。推測：human_feedback に従い、I-06 で PENDING を外して確定値にするとした。
 12. **自動モードの F2 初期値。** D1 で「自動は温度指定なし」と決まったが、F2 の表は「自動：温度＝機種の標準」。推測：自動では温度を送らない（`ac_capabilities.h` の温度指定可否を false）とし、F2 の自動の温度は使われない値になるとした。詳細は D-02。なお送信側は、`IRHitachiAc296::setTemp` が自動モードのとき温度欄に `kHitachiAc296TempAuto`（=1）を入れるため（7節）、`AcState::tempC` にどの値が残っていても自動では利用者の温度は送られない。ただし温度欄は 1 になり、純正リモコンの自動（温度欄 0）と違う。これを受け付けるかは H-2 で確かめ、だめなら `ir_sender_esp32.cpp` の中だけで対処する。

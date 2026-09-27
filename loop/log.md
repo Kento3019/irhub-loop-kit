@@ -288,3 +288,7 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-27T00:16:15+09:00 RETRY I-05 attempts=1 reason=verify: pio_build:esp32（include/secrets.h が無く、狙いどおりの #error で停止。人が secrets.h を作る必要あり）
 - 2026-09-27T08:35:36+09:00 START I-05 attempt=2
 - 2026-09-27T08:39:02+09:00 DONE I-05 attempts=2
+- 2026-09-27T09:22:17+09:00 REOPEN D-01: 人の判断（2026-09-27、T-04 審査 loop/reviews/T-04-a1.md の申し送りより）：D-01 を D-04 に合わせて最新化する。(1) 6節の入出力の実例：成功例を D-04 4節の {"ac":{"power":...,"mode":...,"temp":...,"fan":...}} に、風向の拒否を D-04 4節・10.3 の unknown key "swingV" に直す。疑問9 の同じ推測も直す（または『値の形は D-04 が正』と明記）。(2) 6節の ApiRouter::handle のコメント『"/api/" で始まるパスだけを扱う』を D-04 10.1・11節（/favicon.ico や GET 以外の / も ApiRouter に来て 404）に合わせる。実装（lib/core/src/api.cpp）とテスト（test/test_api）はすでに D-04 に従っているので、それらと食い違わないこと。これ以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断は反映済みなので崩さない。
+- 2026-09-27T09:22:17+09:00 REOPEN D-05: 人の判断（2026-09-27、I-04 審査 loop/reviews/I-04-a3.md の申し送りより）：実装済みの web/index.html に合わせて D-05 を最新化する。(1) 6.6 と 2節の DOM：一覧（GET /api/schedules）を受け取るまでインポート（#sched-import）を押せない（初期 disabled）。理由：受け取る前は件数 0 に見えて置き換えの確認が出ず、ESP32 の一覧を黙って置き換えうるため。(2) 7節：visible に戻ったとき、PUT・import の送信中（schedBusy）は GET /api/schedules を読み直さない（古い応答で上書きしないため）。(3) 6.2/6.3：編集中の件が読み直しで消えていたら保存せず、#sf-msg に『この予定はほかの画面で削除されたため保存できません』を出す。受け取る前の『0/0件』表示は今のままでよい。これ以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断は反映済みなので崩さない。
+- 2026-09-27T09:22:22+09:00 START D-01 attempt=1
+- 2026-09-27T09:24:21+09:00 DONE D-01 attempts=1
