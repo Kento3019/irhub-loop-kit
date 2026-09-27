@@ -7,12 +7,12 @@ namespace {
 // F2 の初期値（この表だけに置く）。添字は AcMode（Auto, Cool, Dry, Heat）
 // 風向は「機種の標準」＝ cap::kSwingVDefault / kSwingHDefault
 constexpr AcSettings kInitialSettings[kAcModeCount] = {
-    {25, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 自動 仮(F2) 温度は「機種の標準」。推測で 25
+    {25, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 自動 決定(D2) 温度は使わない（自動は温度指定なし）
     {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 冷房 決定
-    {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 除湿 仮(F2) 温度を指定できない機種では送らない
-    {20, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 暖房 仮(F2)
+    {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 除湿 決定(D2)
+    {22, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 暖房 決定(D2)
 };
-constexpr AcMode kInitialMode = AcMode::Cool;  // 仮(F2) 起動直後のモード。推測で冷房
+constexpr AcMode kInitialMode = AcMode::Cool;  // 推測（要件への疑問2） 起動直後のモード
 constexpr bool kInitialPower = false;  // 起動直後は停止として持つ（N-BOOT：送っていないので実機は不明）
 
 // 選択肢が変わったときに初期値が選択肢・範囲の外になったら、ビルドで気付くようにする

@@ -329,3 +329,5 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-28T00:00:35+09:00 DONE T-01 attempts=2
 - 2026-09-28T00:00:35+09:00 START T-02 attempt=1
 - 2026-09-28T00:02:32+09:00 DONE T-02 attempts=1
+- 2026-09-28T00:02:33+09:00 START I-01 attempt=1
+- 2026-09-28T00:04:09+09:00 DONE I-01 attempts=1
