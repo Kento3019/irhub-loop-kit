@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# IRハブ H-2/H-3 実機確認（docs/test/test-plan.md の TC-H）
+# 使い方: bash hw_check.sh（メニュー） / bash hw_check.sh H11 H12（指定） / IP=x.x.x.x bash hw_check.sh
+IP="${IP:-192.168.10.127}"
+LOG="hw_check_$(date +%Y%m%d_%H%M%S).log"
+ac(){ echo "  → POST /api/ac $1"|tee -a "$LOG"; curl -sS -m 10 -w '\n  HTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' -d "$1" "http://$IP/api/ac" 2>&1|sed 's/^/  /'|tee -a "$LOG"; }
+st(){ echo "  → GET /api/status"|tee -a "$LOG"; curl -sS -m 10 -w '\n  HTTP %{http_code}\n' "http://$IP/api/status" 2>&1|sed 's/^/  /'|tee -a "$LOG"; }
+w(){ echo "  … $1 秒待つ"; sleep "$1"; }
+p(){ read -r -p "  ▶ $1（Enter で進む）" _; }
+h(){ printf '\n==== %s ====\n  期待: %s\n' "$1" "$2"|tee -a "$LOG"; }
+r(){ read -r -p "  結果 [p]ass/[f]ail/[s]kip: " x; read -r -p "  メモ: " m; echo "  RESULT $1: ${x:-?} $m"|tee -a "$LOG"; }
+
+# ---- H-2 赤外線の送信 ----
+H09(){ h "TC-H09 ビルド" "SUCCESS・-Wswitch 警告なし"; pio run -e esp32 2>&1|tail -15|tee -a "$LOG"; r H09; }
+H10(){ h "TC-H10 起動時に送らない" "LED 光らない・エアコン変化なし・[boot] reset= が出る"; p "LED をカメラで映し USB を抜き差し"; w 30; p "EN ボタンを押す"; w 30; r H10; }
+H11(){ h "TC-H11 運転開始" "200・冷房26℃で運転"; p "エアコンを止めておく"; ac '{"power":true,"mode":"cool","temp":26}'; r H11; }
+H12(){ h "TC-H12 温度→停止" "27℃→停止"; ac '{"temp":27}'; w 10; ac '{"power":false}'; r H12; }
+H13(){ h "TC-H13 温度 上げ下げ・上限下限" "27→26→16→30→26"; ac '{"power":true,"mode":"cool","temp":26}'; w 10; for t in 27 26 16 30 26; do ac "{\"temp\":$t}"; w 10; done; r H13; }
+H14(){ h "TC-H14 風量" "静音→弱→中→強→自動"; for f in min low medium high auto; do ac "{\"fan\":\"$f\"}"; w 15; done; r H14; }
+H77(){ h "TC-H77 モード" "暖房→除湿→自動(temp:null)→冷房(temp:26)"; for m in heat dry auto cool; do ac "{\"mode\":\"$m\"}"; w 30; done; r H77; }
+H17(){ h "TC-H17 受け付けない値" "400 out of range×2・400 fan not supported・200・400 temp not supported in this mode。400 で LED 光らない"; p "運転中にして LED を映す"; ac '{"temp":99}'; ac '{"temp":15}'; ac '{"fan":"max"}'; ac '{"mode":"auto"}'; ac '{"temp":24}'; ac '{"mode":"cool"}'; r H17; }
+H68(){ h "TC-H68 停止中の設定変更" "3回は power:false で LED 光らず→power:true で暖房24℃強→停止"; p "LED を映す"; ac '{"power":false}'; w 5; ac '{"mode":"heat"}'; w 5; ac '{"temp":24}'; w 5; ac '{"fan":"high"}'; w 5; ac '{"power":true}'; p "暖房24℃強で動いたか確認"; ac '{"power":false}'; r H68; }
+H69(){ h "TC-H69 再起動後に温度だけ" "status の power=false・temp:25 で LED 光らず冷房26℃のまま"; ac '{"power":true,"mode":"cool","temp":26}'; p "LED を映して EN ボタンを押す"; w 30; st; ac '{"temp":25}'; w 10; r H69; }
+H15(){ h "TC-H15 設置場所から届く" "6回とも反応・最後は停止"; p "設置場所に置きエアコンを止める"; for i in 1 2 3; do ac '{"power":true,"mode":"cool","temp":26}'; w 10; ac '{"power":false}'; w 10; done; r H15; }
+H16(){ h "TC-H16 初期値（D2）" "暖房 temp:20・除湿 temp:26・自動 null。除湿の温度・自動の動きを控える"; ac '{"power":true,"mode":"cool","temp":26}'; w 10; ac '{"mode":"heat"}'; w 60; ac '{"mode":"dry"}'; w 60; ac '{"mode":"auto"}'; w 60; ac '{"power":false}'; r H16; echo "  ※ /decide D2 で確定"; }
+
+# ---- H-p "  室温計の値: " v; echo "  室温計[$i]: $v"|tee -a "$LOG"; [ $i -lt 3 ] && w 600; done; r H19; }
+H20(){ h "TC-H20 センサーを抜く" "抜く→valid=false・null／戻す→valid=true"; p "SDA を抜く"; w 40; st; p "SDA を戻す"; w 40; st; r H20; }
+
+H2=(H09 H10 H11 H12 H13 H14 H77 H17 H68 H69 H15 H16); H3=(H18 H19 H20)
+run(){ for c in "$@"; do declare -F "$c" >/dev/null && "$c" || echo "不明: $c"; done; }
+echo "IP=$IP  ログ: $LOG"
+if [ $# -gt 0 ]; then run "$@"; else
+  echo "1) H-2 全部  2) H-3 全部  3) 指定"; read -r -p "選択: " s
+  case "$s" in 1) run "${H2[@]}";; 2) run "${H3[@]}";; 3) read -r -p "ケース: " -a cs; run "${cs[@]}";; esac
+fi
+echo; echo "---- まとめ ----"; grep '^  RESULT' "$LOG"; echo "ログ: $LOG → /hw-gate H-2 / H-3 で記録"
