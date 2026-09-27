@@ -277,7 +277,7 @@ if (e != None) → 400 {"error": bad >= 0 ? "schedules[<bad>]: " + errorMessage(
 | パスはあるがメソッドが違う（`POST /api/status`、`GET /api/ac`、`DELETE /api/schedules` など。`HttpMethod::Other` を含む） | 405 | `method not allowed` |
 | `/` に `GET` 以外（`POST /`、`PUT /`、`DELETE /` など） | 404 | `not found` |
 
-- `/` の `GET` だけは web_bridge の `on("/", HTTP_GET, ...)` が受ける。`GET` 以外の `/` はこの登録に合わず `onNotFound` → `ApiRouter` に来る。`ApiRouter` の振り分け表（11節）に `/` は無いので「それ以外」＝ **404**（405 ではない）。
+- `/` の `GET` だけは web_bridge の `on("/", HTTP_GET, ...)` が受ける。`GET` 以外の `/` は web_bridge が `addHandler` で登録する全要求受けの handler（`ApiCatchAllHandler`、12節）→ `ApiRouter` に来る。`ApiRouter` の振り分け表（11節）に `/` は無いので「それ以外」＝ **404**（405 ではない）。
 - `/api/light` も同じく「それ以外」で、メソッドによらず 404（5節）。
 
 #### 10.2 共通（本文のあるエンドポイント）
@@ -352,7 +352,7 @@ bool parseAcPatchJson(std::string_view body, AcPatch* out, std::string* error);
 class ApiRouter {
  public:
   explicit ApiRouter(Hub& hub);
-  ApiResponse handle(const ApiRequest& req);   // onNotFound から来るすべて（GET 以外の "/" も含む。無いパスは 404）
+  ApiResponse handle(const ApiRequest& req);   // web_bridge が addHandler で登録する全要求受けの handler から来るすべて（GET 以外の "/" も含む。無いパスは 404）
  private:
   ApiResponse getStatus();
   ApiResponse postAc(const std::string& body);
@@ -440,7 +440,9 @@ fan  ：mode と同じ形（parseAcFan、"fan: must be string" / "fan: unknown f
 
 ### 12. src/web_bridge（WebServer との橋渡し）
 
-判断を持たない。`ApiRequest` を詰めて `ApiRouter::handle` を呼び、`ApiResponse` をそのまま返すだけ。照明・風向のことは知らない（`/api/light` も他の知らないパスと同じく `onNotFound` → `ApiRouter` → 404）。
+判断を持たない。`ApiRequest` を詰めて `ApiRouter::handle` を呼び、`ApiResponse` をそのまま返すだけ。照明・風向のことは知らない（`/api/light` も他の知らないパスと同じく全要求受けの handler（`ApiCatchAllHandler`） → `ApiRouter` → 404）。
+
+`onNotFound` は使わない。`onNotFound` で API を受けると、`WebServer::_handleRequest()`（`WebServer.cpp`）が `_currentHandler` が null のときに `log_e("request handler not found")` を要求のたびに出すため（動作には影響しないがログが汚れる）。代わりに `RequestHandler` を継承した全要求受けの handler を `addHandler` で登録する（D-01 7節の `src/web_bridge.*` の行と同じ方式）。
 
 ```cpp
 // src/web_bridge.h
@@ -453,16 +455,41 @@ namespace irhub {
 class WebBridge {
  public:
   WebBridge(WebServer& server, ApiRouter& router);
-  void begin();          // on("/", HTTP_GET, ...) と onNotFound(...) を登録して server.begin()
+  void begin();          // server_.on("/", HTTP_GET, [this]{ handleRoot(); }) と
+                         // server_.addHandler(new ApiCatchAllHandler(*this)) を登録して server_.begin()
+  void handleApi();      // ApiCatchAllHandler::handle から呼ぶ。下の手順（公開するのは handler から呼ぶためだけ）
  private:
   void handleRoot();     // send_P(200, "text/html", kIndexHtml)（細部は D-05）
-  void handleApi();      // onNotFound から呼ぶ。下の手順
   WebServer& server_;
   ApiRouter& router_;
 };
 
+// 全要求受けの handler。「GET かつ uri == "/"」以外のすべてを受けて WebBridge::handleApi() に渡す。
+// RequestHandler（framework-arduinoespressif32/libraries/WebServer/src/detail/RequestHandler.h）の
+// 仮想関数 canHandle(HTTPMethod, String) と handle(WebServer&, HTTPMethod, String) だけを上書きする。
+// canUpload・canRaw は既定の false のまま（本文は従来どおり arg("plain") に入る）。
+class ApiCatchAllHandler : public RequestHandler {
+ public:
+  explicit ApiCatchAllHandler(WebBridge& bridge) : bridge_(bridge) {}
+  bool canHandle(HTTPMethod method, String uri) override {
+    return !(method == HTTP_GET && uri == "/");
+  }
+  bool handle(WebServer& server, HTTPMethod requestMethod, String requestUri) override {
+    (void)server; (void)requestMethod; (void)requestUri;   // 中身は WebBridge が server_ から読む
+    bridge_.handleApi();
+    return true;                                           // 応答は必ず送る（404／405 も ApiRouter が返す）
+  }
+ private:
+  WebBridge& bridge_;
+};
+
 }  // namespace irhub
 ```
+
+- 所有権：`addHandler` に渡した handler は WebServer のものになり、`~WebServer()` が登録済みの handler を `delete` する。よって `new ApiCatchAllHandler(*this)` で作って渡し、`WebBridge` のメンバや静的変数には置かない。`begin()` は1回だけ呼ぶ（2回呼ぶと handler が2つ並ぶ。先のものが選ばれるので動作は同じだが作らない）。
+- 選ばれ方：`Parsing.cpp` は登録順に handler を見て、最初に `canHandle` が true を返したものを `_currentHandler` にする。`canHandle` が `GET /` を除外しているので、`on("/", HTTP_GET, …)` との登録順によらず `GET /` は HTML、それ以外はすべてこの handler になる。
+- ログ：この handler が必ず選ばれて `true` を返すので、`request handler not found` も `request handler failed to handle request` も出ない。
+- 振り分けの結果は `onNotFound` 方式のときと同じ（`GET /` は HTML、ほかは `ApiRouter`、表に無いパスは 404、`GET` 以外の `/` も 404。10.1）。
 
 `handleApi()` の手順：
 
@@ -486,7 +513,7 @@ if (!res.downloadFilename.empty()) {
 server_.send(res.status, res.contentType.c_str(), res.body.c_str());
 ```
 
-使う WebServer の API（Arduino core 2.x、D-01 7節の一覧の範囲）：`on(uri, HTTP_GET, handler)`、`onNotFound(handler)`、`method()`（`HTTPMethod` の `HTTP_GET`/`HTTP_POST`/`HTTP_PUT`）、`uri()`、`hasArg(name)`、`arg("plain")`、`sendHeader(name, value)`、`send(code, content_type, content)`、`send_P(code, content_type, content)`、`begin()`、`handleClient()`。
+使う WebServer の API（Arduino core 2.x、D-01 7節の一覧の範囲）：`on(uri, HTTP_GET, handler)`、`addHandler(RequestHandler*)`（`WebServer.h` で実在を確認済み）、`RequestHandler` の仮想関数 `bool canHandle(HTTPMethod method, String uri)`・`bool handle(WebServer& server, HTTPMethod requestMethod, String requestUri)`（`detail/RequestHandler.h` で実在を確認済み）、`method()`（`HTTPMethod` の `HTTP_GET`/`HTTP_POST`/`HTTP_PUT`）、`uri()`、`hasArg(name)`、`arg("plain")`、`sendHeader(name, value)`、`send(code, content_type, content)`、`send_P(code, content_type, content)`、`begin()`、`handleClient()`。
 
 要確認（I-実装時に core 2.x のソース `libraries/WebServer/src/Parsing.cpp` で確かめる）：
 - 本文が `arg("plain")` に入るのは、Content-Type が `application/x-www-form-urlencoded` と `multipart/form-data` のどちらでもないとき。よって画面は `Content-Type: application/json` を付ける（1節）。
@@ -588,6 +615,7 @@ C++17：core は `std::optional`・`std::string_view` を使うので C++17 が�
 - 保存したファイルを画面から読み込むと一覧が戻る（再起動後、フェーズ5の判定。画面は D-05）。
 - `Content-Type` を付けない・`application/x-www-form-urlencoded` で送ると本文が届かず `invalid json` になる（1節の決まりの根拠の確認）。
 - Tailscale 経由（F6）でも同じ応答が返る（ESP32 側の対応なし）。
+- シリアルログ（`CORE_DEBUG_LEVEL` が E 以上）で、`GET /`・`GET /api/status`・`POST /api/ac`・`GET /api/foo`（404）・`POST /`（404）のどれを送っても `request handler not found` と `request handler failed to handle request` が出ない（12節の全要求受けの handler の確認）。振り分けの結果（HTML／API／404）は変わらない。
 
 ---
 

@@ -124,7 +124,7 @@
       "id": "D-04",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-02",
         "D-03"
@@ -153,10 +153,10 @@
         }
       ],
       "brief": "全エンドポイントのリクエスト／レスポンスのJSON、各フィールドの型と検証、エラー（400 + {error}）の一覧。ハンドラは『メソッド・パス・本文 → ステータス・本文』の HTTP 非依存関数として lib/core に置き、src/ は WebServer との橋渡しだけにする。/api/status に選択肢（capabilities）を含めるかをここで決める。",
-      "attempts": 0,
-      "base_commit": "1f16bdf2ae82243e7a2cb5204c6875ac17c8814e",
-      "started_at": "2026-09-26T21:42:51+09:00",
-      "done_at": "2026-09-26T21:49:33+09:00",
+      "attempts": 1,
+      "base_commit": "d954b01e3566c817975bd6510c2e6d9b85cb60dd",
+      "started_at": "2026-09-28T00:59:02+09:00",
+      "done_at": "2026-09-28T01:01:56+09:00",
       "human_feedback": "人の判断（2026-09-28、全フェーズ完了後の手直し）： WebServer のログ対策：今の web_bridge は API を onNotFound で受けているため、要求のたびに WebServer.cpp が E レベルで『request handler not found』を出す（動作には影響なし）。onNotFound の代わりに、WebServer::addHandler(RequestHandler*) で全要求を受ける handler（GET / 以外のすべてを ApiRouter に渡す）を登録する方式にする。振り分けの結果（GET / は HTML、ほかは ApiRouter、無いパスは 404、GET 以外の / も 404）は今と同じにする。RequestHandler の形（canHandle・handle の引数）は ~/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src/detail/RequestHandler.h で実在を確かめてから書く。 docs/design/04-api.md の web_bridge の記述（280行、355行のコメント、443行、456・459行、489行の使う API の一覧など onNotFound を前提にした所）を新しい方式に直す。API の形・振り分け表・文言は変えない。"
     },
     {

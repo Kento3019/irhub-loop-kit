@@ -346,3 +346,5 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-28T00:56:21+09:00 REOPEN I-05: 人の判断（2026-09-28、全フェーズ完了後の手直し）： 設計の直し（D-04・D-01 の web_bridge、D-06 の温湿度の1回目）に合わせて src を直す。(1) src/web_bridge.cpp/.h：onNotFound の代わりに WebServer::addHandler(RequestHandler*) で全要求を受ける方式にし、『request handler not found』のログが出ないようにする。振り分けの結果は今と同じ。(2) src/climate_dht20.cpp/.h：起動直後の1回目が DHT20_ERROR_LASTREAD(-15) にならないよう、D-06 で決めたとおりにする。ほかは変えない。
 - 2026-09-28T00:56:26+09:00 START D-01 attempt=1
 - 2026-09-28T00:59:02+09:00 DONE D-01 attempts=1
+- 2026-09-28T00:59:02+09:00 START D-04 attempt=1
+- 2026-09-28T01:01:56+09:00 DONE D-04 attempts=1
