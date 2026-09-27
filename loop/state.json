@@ -729,7 +729,7 @@
       "id": "I-06",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-1",
         "I-05"
@@ -762,11 +762,11 @@
         }
       ],
       "brief": "docs/hw/phase1-capture.md と D1 の決定に従い、エアコンは IRac で状態一式を送り、照明は記録した信号を送る。F1-VALUES を確定値に置き換え PENDING を外す（D1 が closed のときだけ）。シリアルからボタンを送れるデバッグ機能を付け、フェーズ2の実機確認に使えるようにする。",
-      "attempts": 0,
+      "attempts": 1,
       "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 src/pins.h のコメントだけを直す：kIrSend の『赤外線 LED（エアコン向き。2個目は予備）』を今の回路（LED 2個直列）に、kI2cSda/kI2cScl の『DHT20 SDA/SCL』を AHT25 に、IO14 のコメントを『受信モジュールは外した（env:dump だけが使う）』の趣旨に。docs/design/01-architecture.md 9節の例（D-01 で直す）と同じ文にする。ピン番号とコードは変えない。",
-      "base_commit": "1d4b0be1f88a6a2e6292eb17b26866f8e7015bbd",
-      "started_at": "2026-09-27T22:06:05+09:00",
-      "done_at": "2026-09-27T22:07:38+09:00"
+      "base_commit": "d5c43938f6017715b02223697ff172e337f7802f",
+      "started_at": "2026-09-28T01:43:25+09:00",
+      "done_at": "2026-09-28T01:45:16+09:00"
     },
     {
       "id": "H-2",
