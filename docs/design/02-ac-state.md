@@ -20,7 +20,7 @@ D1 で確定したこと（この文書に関わるもの）：
 - [F1] エアコン操作：「2. 型」の `AcState`（運転・モード・温度・風量の状態一式。風向のフィールドは残すが常に `Off`）、「4. 部分更新」、「6. Hub での使い方」（1回の変更で状態一式を1回送る。停止中に power を含まないパッチは送らない）、「7. stdAc::state_t への変換」、「8. 画面へ渡す選択肢」
 - [F1-VALUES] 温度範囲・風量・風向の選択肢（決定）：「1. ac_capabilities.h」に確定値を1か所で置く。値を使う側は `cap::` の名前だけを参照する。画面へ渡す形は「8. 画面へ渡す選択肢」
 - [F1-TIMER] 本体タイマー（対象外）：作らない。「9. 作らないもの」に扱いだけを書く
-- [F2] 初期設定：「3. モード別の記憶と初期値」の `kInitialSettings`（`// 仮(F2)`）と、「4. 部分更新」のモード切替時の復元規則、「5. 温度を指定できないモード」
+- [F2] 初期設定：「3. モード別の記憶と初期値」の `kInitialSettings`（D2 確定値、暖房 22℃）と、「4. 部分更新」のモード切替時の復元規則、「5. 温度を指定できないモード」
 - [N-STATE] 状態はメモリのみ：「3. モード別の記憶と初期値」。`AcModel` は RAM のメンバだけで持ち、保存も読み込みもしない
 - [N-BOOT] 起動時にエアコンへ送らない：「6. Hub での使い方」。`AcModel` の生成は送信を伴わず、初期状態は `power=false`
 - [PROTO] プロトコル（決定：HITACHI_AC296）：「7. stdAc::state_t への変換」。プロトコル名は `src/ir_sender_esp32.cpp` の1か所だけ。押したボタンのバイト（`state[11]`）と自動の温度欄は H-2 で確かめる
@@ -196,24 +196,24 @@ class AcModel {
 
 ### 3. モード別の記憶と初期値（ac_state.cpp）
 
-F2 の初期値は `ac_state.cpp` の1つの表だけに置く（req-index F2 の rule）。実装済みの表をそのまま使う：
+F2 の初期値は `ac_state.cpp` の1つの表だけに置く（req-index F2 の rule）。D2（closed、2026-09-27）の確定値にする。実装済みの表から変えるのは暖房の温度（20 → 22）と行のコメントだけ：
 
 ```cpp
-// lib/core/src/ac_state.cpp（実装済み。抜粋）
+// lib/core/src/ac_state.cpp（抜粋。D2 確定値）
 // 添字は AcMode（Auto, Cool, Dry, Heat）。風向は cap::kSwingVDefault / kSwingHDefault（= Off）
 constexpr AcSettings kInitialSettings[kAcModeCount] = {
-  {25, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 自動 仮(F2) 温度は使わない（自動は温度指定なし）
+  {25, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 自動 決定(D2) 温度は使わない（自動は温度指定なし）
   {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 冷房 決定
-  {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 除湿 仮(F2)
-  {20, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 暖房 仮(F2)
+  {26, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 除湿 決定(D2)
+  {22, AcFan::Auto, cap::kSwingVDefault, cap::kSwingHDefault},  // 暖房 決定(D2)
 };
-constexpr AcMode kInitialMode  = AcMode::Cool;  // 仮(F2) 起動直後のモード
+constexpr AcMode kInitialMode  = AcMode::Cool;  // 推測（要件への疑問2） 起動直後のモード
 constexpr bool   kInitialPower = false;         // 起動直後は停止として持つ（N-BOOT）
 static_assert(allInitialValid(), "initial settings must be within the capabilities");
 ```
 
 - 自動の行の `25` は、自動が温度指定なしになったので**画面にも API にも出ず、利用者の値として送られない**。`AcSettings::tempC` の型を変えないために入れておく値（`allInitialValid()` の範囲検査を通る値）。行のコメントは I-06 で上のとおり直してよい（値は変えない）。
-- 確定値にしたあとも `allInitialValid()` は通る（風量 Auto は選択肢、風向 Off は選択肢、温度 20・25・26 は 16〜30 の中）。通らなくなったら `ac_capabilities.h` と F2 の食い違いなので、人が決める。
+- 確定値にしたあとも `allInitialValid()` は通る（風量 Auto は選択肢、風向 Off は選択肢、温度 22・25・26 は 16〜30 の中）。通らなくなったら `ac_capabilities.h` と F2 の食い違いなので、人が決める。
 
 モデルの持ち物と初期状態（確定値で）：
 
@@ -224,7 +224,7 @@ static_assert(allInitialValid(), "initial settings must be within the capabiliti
 | `perMode_[Auto]` | 25℃（使わない）・自動・Off・Off | 今のモードが自動のときのパッチの風量（温度は `TempNotSupported` で入らない） |
 | `perMode_[Cool]` | 26℃・自動・Off・Off | 今のモードが冷房のときのパッチの温度・風量 |
 | `perMode_[Dry]` | 26℃・自動・Off・Off | 同上（除湿） |
-| `perMode_[Heat]` | 20℃・自動・Off・Off | 同上（暖房） |
+| `perMode_[Heat]` | 22℃・自動・Off・Off | 同上（暖房） |
 
 - すべて `AcModel` のメンバ（RAM）だけに持つ。フラッシュへの保存・読み込みはしない（N-STATE、やらないこと）。再起動すると `Hub` が作り直され、上の初期値に戻る。
 - `perMode_` はモードを離れても消さない。再起動するまで、4モードそれぞれの最後の設定が残る。
@@ -279,8 +279,8 @@ state_.swingH  = perMode_[mode_].swingH              // 常に Off
 |---|---|---|---|---|---|---|
 | 1 | 起動直後 false, cool, 26, auto | `{"power":true}` | None | true, cool, 26, auto | なし | 1（power を含む） |
 | 2 | true, cool, 26, auto | `{"temp":27}` | None | true, cool, 27, auto | Cool.temp=27 | 1（運転中） |
-| 3 | true, cool, 27, auto | `{"mode":"heat"}` | None | true, heat, 20, auto | なし（Heat の初期値を復元） | 1 |
-| 4 | true, heat, 20, auto | `{"temp":22,"fan":"high"}` | None | true, heat, 22, high | Heat.temp=22, Heat.fan=high | 1 |
+| 3 | true, cool, 27, auto | `{"mode":"heat"}` | None | true, heat, 22, auto | なし（Heat の初期値 22 を復元） | 1 |
+| 4 | true, heat, 22, auto | `{"temp":22,"fan":"high"}` | None | true, heat, 22, high | Heat.fan=high（Heat.temp は同じ値 22 を受け付けてそのまま） | 1 |
 | 5 | true, heat, 22, high | `{"mode":"cool"}` | None | true, cool, 27, auto | なし（Cool の最後の設定 27 を復元） | 1 |
 | 6 | true, cool, 27, auto | `{"mode":"heat","temp":18}` | None | true, heat, 18, high | Heat.temp=18（復元の後に上書き） | 1 |
 | 7 | true, heat, 18, high | `{"temp":31}` | TempOutOfRange | 変わらない | なし | 0 |
@@ -489,7 +489,7 @@ bool IrSenderEsp32::sendAc(const AcState& s) {
 |---|---|---|---|
 | F1-VALUES | 決定（D1） | 確定値（温度 16〜30℃、自動だけ温度指定なし、風量 自動・静音(Min)・弱・中・強、風向 Off だけ）を `lib/core/src/ac_capabilities.h` だけに置く。他のファイルは `cap::` の名前だけを使う | I-06 が `ac_capabilities.h` の値を1節の表どおりに直し、`PENDING(F1-VALUES)` を外す。lib/ と src/ で直すのはこのファイルだけ。その前に T-02 がテストの仮値の直書きを `cap::` から作る形に直す（D-01 7a の順番） |
 | F1-TIMER | 対象外（D1） | 作らない。`AcState`・`AcPatch`・`IIrSender`・API・画面のどこにも入れず、`state_t::sleep`/`clock` は `-1`。ID もコードに書かない（allowed_in が空） | — |
-| F2 | 仮（冷房 26℃・自動は決定。D2 は H-2 で閉じる） | `ac_state.cpp` の `kInitialSettings` と `kInitialMode` の1か所。暖房 20℃・除湿 26℃・自動（温度は使わない）に `// 仮(F2)`。風向「機種の標準」は `cap::kSwingVDefault`/`kSwingHDefault`（= Off） | D2 が閉じたら `kInitialSettings` の行の値だけ（値は `cap::` の範囲・選択肢の中であること。外なら `static_assert` がビルドを止める）。起動直後のモードが変われば `kInitialMode` |
+| F2 | 決定（D2 closed、2026-09-27） | `ac_state.cpp` の `kInitialSettings` と `kInitialMode` の1か所。確定値は冷房 26℃・暖房 22℃・除湿 26℃・自動（温度指定なし。内部の 25 は使わない）、風量はすべて自動。コメントは `// 決定(D2)`。風向「機種の標準」は `cap::kSwingVDefault`/`kSwingHDefault`（= Off）。`kInitialMode = Cool` は F2 に定めが無いための推測（要件への疑問2） | 実装済みの表からは暖房の温度 20 → 22 と `仮(F2)` のコメントを直すだけ（値は `cap::` の範囲・選択肢の中。外なら `static_assert` がビルドを止める）。起動直後のモードを人が決めたら `kInitialMode` |
 | PROTO | 決定（HITACHI_AC296） | core はプロトコルを知らない。`src/ir_sender_esp32.cpp` の `kAcProtocol`・`kAcModel` の1か所 | H-2 で `state[11]`（ボタンのバイト）や自動の温度欄を受け付けなければ、`src/ir_sender_esp32.cpp` の中だけ |
 | N-BOOT | 仮（原本は「決定案」） | `AcModel` は送信の手段を持たず、`kInitialPower=false`。送信は `Hub::applyAc` とスケジュール実行だけ | 起動時に停止を送る仕様になっても `AcModel` は変えない（D-01 の決まりどおり `main.cpp` の `setup()` 末尾） |
 | N-STATE | 決定 | RAM のメンバだけ | — |
@@ -508,7 +508,7 @@ bool IrSenderEsp32::sendAc(const AcState& s) {
   - 選択肢の外の値が要るテストは、列挙のうち `cap::fanSupported` などが false のものをループで探す。無ければ `TEST_IGNORE_MESSAGE`。
   - 温度を指定できるモード／できないモードが要るテストは、`cap::tempSupported(m)` で探す。無ければ `TEST_IGNORE_MESSAGE`。
   - 温度の具体値（27、22、18 など）は `cap::tempInRange` の中であることを前提にしてよいが、範囲の端を使うテストは `cap::kTempMinC`／`kTempMaxC` から作る。
-  - F2 の初期値（暖房 20・除湿 26・自動 25）は仮(F2)なので、期待値は `initialSettings(m)` から取る。冷房 26℃・自動風量（決定）は直書きしてよい。
+  - F2 の初期値（暖房 22・除湿 26・自動 25（使わない値））は D2 で決定。期待値は `initialSettings(m)` から取る（表の1か所だけを正とするため）。冷房 26℃・自動風量は直書きしてよい。暖房 22℃・除湿 26℃・風量自動が入っていることは初期状態の観点で `initialSettings(m)` に対して1度だけ直書きで確かめる。
 - 確定値での結果の見込み（テストの書き方で自動的にこうなる）：TC-N06（上下風向だけのパッチ）・TC-N07（左右）は IGNORE、TC-N17（風量の選択肢外＝`Max`）・TC-N18（上下の選択肢外）・TC-N19（左右の選択肢外）・TC-N23／N24（温度を指定できないモード＝自動）は実行されて通る。
 
 観点：
@@ -553,7 +553,7 @@ bool IrSenderEsp32::sendAc(const AcState& s) {
 - H-2：自動モードで送ったとき、温度欄が 1（IRac）で純正の 0 と違ってもエアコンが受け付けるか。受信機で温度欄の値を記録する。
 - H-2：除湿で送った温度がエアコンに効くか（無視されるなら `kTempSupported[Dry]` を人が見直す材料。5節）。
 - H-2：停止中に画面で温度を変えてもエアコンに何も届かず（受信音が鳴らない）、そのあと運転を押すと、変えた設定で運転が始まる。
-- H-2：暖房・除湿・自動の初期値（D2、F2）を決める材料を得る。
+- 暖房・除湿・自動の初期値（D2、F2）は人が決定済み（暖房 22℃ など）。実機では再起動後に暖房へ切り替えて運転すると 22℃・風量自動で送られることを受信機のダンプで見る。
 - 電源投入・リセット直後にエアコンが動かない（N-BOOT）。
 
 ---
@@ -561,7 +561,7 @@ bool IrSenderEsp32::sendAc(const AcState& s) {
 ## 要件への疑問
 
 1. **自動モードの F2 初期値「温度：機種の標準」。** D1 で自動は温度指定なしと決まったので、この温度は画面にも信号にも出ない（`IRHitachiAc296::setTemp` が温度欄を 1 に置き換える）。推測：`kInitialSettings[Auto].tempC = 25` を、型を変えないための使われない値として残すとした（実装済み・T-02 の期待値と同じ）。原本 F2 の表の自動の温度欄は「なし」に直すとよい（人が判断）。
-2. **起動直後のモード。** F2 は「起動直後に使う値」を表にしているが、起動直後がどのモードかは書かれていない。推測：冷房（`kInitialMode = Cool`、`// 仮(F2)`）、運転は停止（`power=false`）とした。停止にしたのは、N-BOOT で起動時に何も送らないため、実機の状態が分からないから。
+2. **起動直後のモード。** F2 は「起動直後に使う値」を表にしているが、起動直後がどのモードかは書かれていない。D2 でも決まっていない。推測：冷房（`kInitialMode = Cool`）、運転は停止（`power=false`）とした。停止にしたのは、N-BOOT で起動時に何も送らないため、実機の状態が分からないから。
 3. **除湿で温度を指定できるか。** D1 の記録は「自動は温度指定なし」だけで、除湿には触れていない。推測：受信結果の除湿の信号に `Temp: 28C` が載っているので、除湿は温度を指定できる（`kTempSupported[Dry]=true`、範囲も 16〜30℃ で共通）とした。エアコンが除湿の温度を実際に使うかは H-2 で確かめる。
 4. **モード別に記憶する項目。** F2 は「モードごとに最後に使った設定」とだけ書く。推測：温度・風量（と、常に Off の風向）をモード別に記憶し、運転（入／切）はモード別にしないとした（F2 の表の列が温度・風量・風向のため）。
 5. **静音の表し方と API の文字列。** D1 の風量は「自動・静音・弱・中・強」、human_feedback (d) は `Quiet` と書くが、実装済みの `AcFan` に `Quiet` は無く、インターフェースは変えない決まり。推測：静音を `AcFan::Min`（→ `stdAc::fanspeed_t::kMin` → `kHitachiAc296FanSilent`）で表し、API の文字列も実装済みの `"min"` のままとした（`toString` を変えると T-02 の TC-N29 と D-04 の検査が変わるため）。画面の表示名「静音」は D-05 が持つ。`"quiet"` を API の文字列にしたい場合は `ac_state.cpp` の文字列表とテストを一緒に直す（人が判断）。
