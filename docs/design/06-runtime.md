@@ -1,6 +1,6 @@
 # 詳細設計：起動・ネットワーク・時刻・センサー
 
-作業項目：D-06／要件の原本：`docs/requirements.md` v0.4／要件ID：`docs/req-index.json`（D1 closed 後）／前提：`docs/design/01-architecture.md`（D-01、75ce1e8）、`docs/design/02-ac-state.md`（D-02、97efd33）、`docs/design/03-schedule.md`（D-03、1f16bdf）、`docs/design/04-api.md`（D-04、f340073）、`docs/design/05-ui.md`（D-05、6bf1464）、`docs/hw/phase1-capture.md`（H-1 の受信記録）
+作業項目：D-06／要件の原本：`docs/requirements.md` v0.5（部品表・ピン割り当て・配線v2 を反映。温湿度センサーは AHT25）／要件ID：`docs/req-index.json`（D1 closed 後）／前提：`docs/design/01-architecture.md`（D-01、75ce1e8）、`docs/design/02-ac-state.md`（D-02、97efd33）、`docs/design/03-schedule.md`（D-03、1f16bdf）、`docs/design/04-api.md`（D-04、f340073）、`docs/design/05-ui.md`（D-05、6bf1464）、`docs/hw/phase1-capture.md`（H-1 の受信記録）
 
 この文書では、`src/` 側の実行時の動きを決める。対象は `src/main.cpp`（`setup()` と `loop()`）、`src/wifi_manager.*`、`src/clock_esp32.*`、`src/climate_dht20.*`、`src/ir_sender_esp32.h` の public の形、`include/secrets.h(.example)`。
 
@@ -26,7 +26,7 @@ D-01 で決めた名前・シグネチャ（`WifiManager(ssid, pass)`・`begin(n
 - [N-IP] IP 固定の2方式：「6. IP アドレスの固定（2方式）」（方式A＝DHCP 予約、方式B＝ESP32 側で固定。`secrets.h` の `kUseStaticIp` で切り替える）
 - [N-RESP] 押してから送信まで1秒以内：「3. loop() の中身と周期」の「3.2 loop() を止める処理の上限」（エアコンの送信時間の見積もり）と「3.3 1秒の内訳」
 - [F5] 室温・湿度：「8. 温湿度センサー（src/climate_dht20）」。読み取り周期は `Hub::tick` の `kClimateIntervalMs`（D-01）で、ここでは初期化と1回の読み取りを決める
-- [HW-PINS] ピン割り当て：「2.1 setup() の手順」「2.4」と「8.」で `pins::kIrSend`（IO23）、`pins::kI2cSda`／`kI2cScl`（IO21／IO22）を使う。IO14 は初期化しない（D-01 のとおり）
+- [HW-PINS] ピン割り当て：「2.1 setup() の手順」「2.4」と「8.」で `pins::kIrSend`（IO23）、`pins::kI2cSda`／`kI2cScl`（IO21／IO22）を使う。IO14 は初期化しない（D-01 のとおり。要件 v0.5 の配線v2 では未接続）
 - [C-TECH] 技術制約：「1. 使うライブラリ API の一覧」（Arduino core 2.x の WiFi・SNTP、IRremoteESP8266 の `IRac`、RobTillaart DHT20、Wire、`monitor_speed = 115200` に合わせた `Serial.begin(115200)`）
 
 ---
@@ -238,7 +238,7 @@ void loop() {
 |---|---|---|---|
 | `delay(1)` | 1 ms | 毎回 | そのまま |
 | `wifi.tick` | 1 ms 未満（`WiFi.status()` を見るだけ。再試行時も `WiFi.disconnect()`・`WiFi.begin()` は待たずに戻る） | 毎回 | そのまま。接続を待つループを書かない |
-| `sensor.read()`（DHT20） | 約 80〜100 ms（測定の完了待ち） | 30 秒に1回 | そのまま（1秒の枠に収まる）。要確認：実機で所要時間をシリアルに出して測る（8.3） |
+| `sensor.read()`（AHT25。DHT20 ライブラリ） | 約 80〜100 ms（測定の完了待ち） | 30 秒に1回 | そのまま（1秒の枠に収まる）。要確認：実機で所要時間をシリアルに出して測る（8.3） |
 | エアコンの送信（`IRac::sendAc`、HITACHI_AC296） | **約 0.48 秒**（下の見積もり）。幅で言うと約 0.4〜0.7 秒 | 操作・スケジュールのとき | 送信は止められない（赤外線の信号の長さそのもの）。送信中に来た要求は送信後に処理される |
 | `server.handleClient()` | 要求1件の処理。本文 8192 バイトまで（D-04） | 要求のたび | 遅い端末が本文を途中で止めると、WebServer のタイムアウトまで止まる（要確認：Arduino core 2.x の `HTTP_MAX_DATA_WAIT`、5000 ms の見込み）。LAN 内の自分だけの利用（N-AUTH）なので対策しない |
 
@@ -514,7 +514,7 @@ constexpr irhub::StaticIpConfig kStaticIp = {
 
 ### 8. 温湿度センサー（src/climate_dht20、F5）
 
-実機のセンサーは AHT25（DHT20 互換。I2C アドレス 0x38 で、同じ DHT20 ライブラリで読める）。以下の「DHT20」は AHT25 にもそのまま当てはまる。
+センサーの部品は AHT25（DHT20 と同じメーカーの互換品。I2C アドレス 0x38 で、DHT20 用ライブラリで読める。要件 v0.5）。01-architecture.md 9節と同じく、部品を指すときは AHT25 と書き、ライブラリ名・クラス名・定数名・ログのタグ（DHT20 ライブラリ、`DHT20.h`、`class DHT20`、`ClimateDht20`、`src/climate_dht20.*`、`kDht20Addr`、`DHT20_OK`／`DHT20_ERROR_*`、`[dht20]`）は実際の名前なので DHT20 のまま使う。
 
 #### 8.1 クラス
 
@@ -541,7 +541,7 @@ class ClimateDht20 : public IClimateSensor {
 
 #### 8.2 begin()
 
-1. 電源投入から 100 ms 以上たってから通信する（DHT20 のデータシートの起動時間）。`millis() < 100` なら `delay(100 - millis())`。`setup()` の中の1回だけなので、長く止める待ちには当たらない。
+1. 電源投入から 100 ms 以上たってから通信する（センサーの起動時間。DHT20 のデータシートの値を AHT25 にも使う。要確認：AHT25 のデータシートで起動時間が 100 ms 以下であること）。`millis() < 100` なら `delay(100 - millis())`。`setup()` の中の1回だけなので、長く止める待ちには当たらない。
 2. `Wire.begin(pins::kI2cSda, pins::kI2cScl)`（IO21／IO22、HW-PINS）。
 3. `dht_.begin()`。戻り値が false なら `[dht20] begin failed` を出して進む。
 4. I2C アドレス 0x38（`pins::kDht20Addr`）はライブラリの中で固定のため、コードでは渡さない（C-TECH の 0x38 はライブラリが使う値と同じ。要確認：DHT20.h の既定アドレスが 0x38 であること）。
@@ -587,7 +587,7 @@ int ClimateDht20::readFirst() {
 - 失敗（配線外れ、チェックサム異常、2回目以降で前回から 1 秒以内の呼び出し `DHT20_ERROR_LASTREAD` など）はすべて `valid=false`。再試行は `Hub::tick` の次の周期（30 秒後）に任せ、ここで再試行しない。
 - 値の丸め（小数1桁）は API（D-04 3節）が行う。ここでは丸めない。
 - 補正（オフセット）は入れない。フェーズ3の「室温計と大きくずれない」で大きくずれた場合は、要件への疑問として人に上げる。
-- 周期：起動直後に1回、その後 30 秒ごと（`Hub::tick`、`kClimateIntervalMs`）。DHT20 の「1 秒以上空ける」制約は満たす。
+- 周期：起動直後に1回、その後 30 秒ごと（`Hub::tick`、`kClimateIntervalMs`）。DHT20 ライブラリの「1 秒以上空ける」制約（AHT25 の測定間隔の目安としても同じ値を使う。要確認）は満たす。
 
 ### 9. 作らないもの（やらないことの確認）
 
@@ -646,7 +646,7 @@ int ClimateDht20::readFirst() {
 
 起動（N-BOOT・HW-PINS）：
 - 電源投入・EN ボタンでのリセット・`ESP.restart()` のどれでも、赤外線 LED が光らない（スマホのカメラで見る）し、エアコンが反応しない。シリアルに `[boot]` とリセット理由が出る。
-- 起動から 1 秒以内（`setup()` の後の最初の `Hub::tick`、起動から約 0.1〜0.2 秒）に `[dht20]` の1回目の値（`xx.xC yy.y% (zzms)`）が出て、`[dht20] read error -15` が出ない（8.3 の `readFirst()`）。1回目の `(zzms)` が 2 回目以降の `(zzms)` と同じ程度で、どちらも 100 ms 前後以下（H-3 の実測は約 40 ms。3.2 の 80〜100 ms は見積もり。下の DHT20 の「所要時間が 100 ms 前後」の観点と同じ基準）であること（`loop()` 側に 1 秒待ちを入れていないことの確認）。また `[boot]` から `[wifi] attempt 1/3` まで（`wifi.begin()` は `setup()` の中で呼ぶ）が約 100 ms（`sensor.begin()` の起動待ち）程度で、1 秒に届かないこと（`sensor.begin()` に待ちを足していないことの確認）。
+- 起動から 1 秒以内（`setup()` の後の最初の `Hub::tick`、起動から約 0.1〜0.2 秒）に `[dht20]` の1回目の値（`xx.xC yy.y% (zzms)`）が出て、`[dht20] read error -15` が出ない（8.3 の `readFirst()`）。1回目の `(zzms)` が 2 回目以降の `(zzms)` と同じ程度で、どちらも 100 ms 前後以下（H-3 の実測は約 40 ms。3.2 の 80〜100 ms は見積もり。下の温湿度（F5）の「所要時間が 100 ms 前後」の観点と同じ基準）であること（`loop()` 側に 1 秒待ちを入れていないことの確認）。また `[boot]` から `[wifi] attempt 1/3` まで（`wifi.begin()` は `setup()` の中で呼ぶ）が約 100 ms（`sensor.begin()` の起動待ち）程度で、1 秒に届かないこと（`sensor.begin()` に待ちを足していないことの確認）。
 - 1回目の 30 秒後の2回目以降も値が出る（`dht_.read()` の経路に切り替わっても失敗しない）。
 
 Wi-Fi（N-WIFI、D-01 6a の表。シリアルの `[wifi]` の行と時刻で確かめる）：
@@ -669,11 +669,11 @@ IP（N-IP）：
 
 温湿度（F5）：
 - 30 秒ごとに `[dht20]` が出る。所要時間（`(xxms)`）が 100 ms 前後であること（3.2 の見積もりの確認）。
-- DHT20 の SDA を抜くと `read error` → `/api/status` の `climate.valid=false`。戻すと次の周期で戻る。
+- AHT25 の SDA を抜くと `read error` → `/api/status` の `climate.valid=false`。戻すと次の周期で戻る。
 - 値が室温計と大きくずれない（フェーズ3）。
 
 エアコンの送信時間（N-RESP・3.2 の見積もりの確認、I-06 の後）：
-- `sendAc` の前後で `millis()` を取り（I-06 の実装で一時的にシリアルへ出す、または受信機 IRrecvDumpV2 で送信信号の rawData を取る）、`loop()` が止まる時間が約 0.48 秒（0.4〜0.7 秒の範囲）に収まることを記録する。受信機で取った信号が HITACHI_AC296・296 ビットとして読めることもあわせて見る。
+- `sendAc` の前後で `millis()` を取り（I-06 の実装で一時的にシリアルへ出す、または受信機 IRrecvDumpV2 で送信信号の rawData を取る。受信モジュールは要件 v0.5 の配線v2 で外したので、この確認のときだけ別に用意する）、`loop()` が止まる時間が約 0.48 秒（0.4〜0.7 秒の範囲）に収まることを記録する。受信機で取った信号が HITACHI_AC296・296 ビットとして読めることもあわせて見る。
 - H-2 の確認（D-01 7節）：`IRac` の送った信号の `state[11]` の値を記録し、エアコンが運転・停止・モード・温度・風量を受け付けること。
 
 応答（N-RESP）：
@@ -695,7 +695,7 @@ IP（N-IP）：
 6. **IP 設定の置き場所。** 要件は SSID とパスワードだけを `secrets.h` に置くとしている。推測：IP 固定の方式と値（秘密ではない）も `secrets.h` に置くとした（家のネットワーク情報を Git に入れず、書き換える場所を1つにするため）。方式の既定は方式A（DHCP 予約）とした。
 7. **`IrSenderEsp32` の public の形。** D-01・D-02 は `IrSenderEsp32` のコンストラクタと初期化の形を決めていない。推測：引数なしのコンストラクタ（ピンは `pins::kIrSend` を中で使う）と、送信しない `begin()`（I-05・I-06 とも `pinMode`＋`digitalWrite(LOW)`）を持ち、送信は `sendAc` だけの形とし、I-05（スタブ）と I-06（本物）で public 部分を共通にした（2.4）。
 8. **`secrets.h` から `StaticIpConfig` を使うための include。** 見本は `#include "../src/wifi_manager.h"` としたが、PlatformIO の include パスでの書き方は要確認（I-05 がビルドで確かめる）。うまくいかなければ `secrets.h` では `uint8_t` の配列4つを定義し、`main.cpp` で `StaticIpConfig` に詰める形に変えてよい（そのときは7節の見本も合わせて直す）。
-9. **DHT20 の補正と起動待ち。** 要件にない。推測：補正は入れず、起動時に 100 ms 待つ（データシート）だけとした。1回目の読み取りについては、推測：ライブラリの 1 秒の間隔チェックは前の測定が無い1回目には不要とし、1回も読めていない間だけそのチェックを通さずに読むとした（8.3。人の判断 2026-09-28 を受けた直し。実機の AHT25 は DHT20 互換）。
+9. **センサー（AHT25）の補正と起動待ち。** 要件にない。推測：補正は入れず、起動時に 100 ms 待つ（DHT20 のデータシートの値を AHT25 にも使う。AHT25 での値は要確認）だけとした。1回目の読み取りについては、推測：ライブラリの 1 秒の間隔チェックは前の測定が無い1回目には不要とし、1回も読めていない間だけそのチェックを通さずに読むとした（8.3。人の判断 2026-09-28 を受けた直し。実機の AHT25 は DHT20 互換）。
 10. **D-01 との差分。** D-01 7節は `clock_esp32` の API に `getLocalTime()` を挙げているが、既定で最大5秒止まるため使わず、`time()`＋`localtime_r()` にした（1節）。D-03 は既に「`time()`＋`localtime_r()` から作る」と書いており一致する。結果の `ClockReading::local` の中身は同じ。D-01 の表の直しは D-01 の担当に任せる。
 11. **エアコンの送信時間の数え方。** 要件に定めがない。推測：`loop()` が止まる時間を、ライブラリの定数（信号 約 0.375 秒＋末尾の空き 0.1 秒＝約 0.48 秒）で見積もり、受信記録の rawData（約 0.38 秒）で信号の長さを裏づけた（3.2）。D-05 4.4 の「約 0.4〜0.7 秒」は、この中心値に余裕を持たせた幅として読むことにした（D-05 は変えない）。
 12. **req-index の記述の古さ。** `docs/req-index.json` の `PROTO` の title が「（仮：HITACHI_AC424）」、`source` が v0.3 のままで、D1 の結果（HITACHI_AC296、v0.4）と合わない。この文書は D1 の結果と原本 v0.4 に従った。req-index の直しは人が行う。

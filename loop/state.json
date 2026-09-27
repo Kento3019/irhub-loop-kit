@@ -201,7 +201,7 @@
       "id": "D-06",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01"
       ],
@@ -230,10 +230,10 @@
         }
       ],
       "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。",
-      "attempts": 0,
-      "base_commit": "9923320df7357efd13e2ae811004c6bfe22a89ca",
-      "started_at": "2026-09-28T01:07:40+09:00",
-      "done_at": "2026-09-28T01:09:58+09:00",
+      "attempts": 1,
+      "base_commit": "6779095c8b06eca69f9494d7abaacf09a94c83ed",
+      "started_at": "2026-09-28T01:38:44+09:00",
+      "done_at": "2026-09-28T01:41:21+09:00",
       "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 docs/design/06-runtime.md で、部品としてのセンサーを DHT20 と書いている所を AHT25 に直す（ライブラリ・クラス・定数の名前はそのまま）。LED の回路を書いている所があれば要件 v0.5 に合わせる。ほかは変えない。"
     },
     {
