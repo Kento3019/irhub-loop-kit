@@ -324,7 +324,7 @@ struct ApiResponse {
 class ApiRouter {
  public:
   explicit ApiRouter(Hub& hub);
-  // web_bridge の onNotFound から来るすべてのリクエストを扱う（"/api/" 以外も来る）。
+  // web_bridge が addHandler で登録する全要求受けの handler から来るすべてのリクエストを扱う（"/api/" 以外も来る）。
   // GET / だけは web_bridge が HTML を返すので来ない。GET 以外の "/"、"/favicon.ico"、"/api/light" など
   // ルーティング表に無いパスは 404（D-04 10.1・11節）
   ApiResponse handle(const ApiRequest& req);
@@ -425,7 +425,7 @@ D-06 への申し送り：
 | `src/clock_esp32.h/.cpp` | `IClock` の実装。NTP 設定と JST、`synced` の判定 | Arduino core：`configTzTime()`、`getLocalTime(struct tm*, uint32_t)`、`time()` | D-06 |
 | `src/climate_dht20.h/.cpp` | `IClimateSensor` の実装 | `Wire.begin(sda, scl)`、DHT20 ライブラリ（RobTillaart）：`DHT20(TwoWire*)`、`bool begin()`、`read()`（戻り値の型は版により `int`／`int8_t` などがあり**要確認**。実装は戻り値を `DHT20_OK`（0）と比べることだけに依存し、型を決め打ちしない）、`float getTemperature()`、`float getHumidity()`。連続読み取りは 1000ms 以上空ける必要あり（30 秒周期なので問題なし） | D-06 |
 | `src/wifi_manager.h/.cpp` | Wi-Fi の接続開始、IP 固定（N-IP）の設定、再接続の判断と実行、全失敗時の再起動（N-WIFI、6a 節）。src に判断を置く唯一の例外 | `WiFi.config()`、`WiFi.begin(ssid, pass)`、`WiFi.disconnect()`、`WiFi.status()`（`WL_CONNECTED`）、`WiFi.setAutoReconnect(bool)`（使うかは D-06）、`ESP.restart()` | D-06 |
-| `src/web_bridge.h/.cpp` | WebServer と `ApiRouter` の橋渡し。`GET /` は `kIndexHtml` を返す。それ以外は `onNotFound` で受けて `ApiRequest` に詰めて `ApiRouter::handle()` を呼び、`ApiResponse` をそのまま返す | `WebServer(int port)`、`on(uri, HTTPMethod, handler)`、`onNotFound(handler)`、`method()`、`uri()`、`arg("plain")`（本文）、`sendHeader()`、`send(code, type, content)`（API 応答）、`send_P(code, type, content)`（`GET /` の HTML。`String` へのコピーを避ける）、`handleClient()`、`begin()` | D-04、D-05 |
+| `src/web_bridge.h/.cpp` | WebServer と `ApiRouter` の橋渡し。`GET /` は `on("/", HTTP_GET, …)` で `kIndexHtml` を返す。それ以外は `RequestHandler` を継承した全要求受けの handler（`canHandle` は「`GET` かつ `uri == "/"`」以外で `true`）を `addHandler` で登録して受け、`ApiRequest` に詰めて `ApiRouter::handle()` を呼び、`ApiResponse` をそのまま返す。`handle` は応答を送ったうえで常に `true` を返す（無いパスや GET 以外の `/` の 404 も `ApiRouter` が返すので、振り分けの結果は `onNotFound` 方式と同じ）。`onNotFound` は使わない。根拠：`WebServer::_handleRequest()` は `_currentHandler`（`Parsing.cpp` で `canHandle` が最初に `true` を返した handler）が無いときに `log_e("request handler not found")`、`handle` が `false` を返したときに `log_e("request handler failed to handle request")` を出す。全要求受けの handler が必ず選ばれ `true` を返すので、どちらも出ない | `WebServer(int port)`、`on(uri, HTTPMethod, handler)`、`addHandler(RequestHandler*)`（所有権は WebServer に移る。`~WebServer()` が登録済み handler を `delete` するので、handler は `new` で作って渡し、`WebBridge` のメンバや静的変数には置かない）、`RequestHandler` の仮想関数 `bool canHandle(HTTPMethod method, String uri)` と `bool handle(WebServer& server, HTTPMethod requestMethod, String requestUri)`（`canUpload`・`canRaw` は既定の `false` のままにし、本文は従来どおり `arg("plain")` に入る）、`method()`、`uri()`、`hasArg("plain")`・`arg("plain")`（本文）、`sendHeader()`、`send(code, type, content)`（API 応答）、`send_P(code, type, content, len)`（`GET /` の HTML。`String` へのコピーを避ける）、`handleClient()`、`begin()`。いずれも `framework-arduinoespressif32/libraries/WebServer/src/WebServer.h`・`detail/RequestHandler.h` で実在を確認済み | D-04、D-05 |
 | `src/generated/index_html.h` | `web/index.html` を埋め込んだ `const char kIndexHtml[]`。`tools/embed_html.py` が生成。手で編集しない | — | D-05 |
 | `include/secrets.h` | SSID／パスワード（Git 管理外）。見本は `include/secrets.h.example` | — | D-06 |
 
