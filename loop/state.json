@@ -632,7 +632,7 @@
       "id": "I-05",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "I-04"
       ],
@@ -668,11 +668,11 @@
         }
       ],
       "brief": "src/ に Arduino 側の橋渡しを書く。赤外線送信は I-06 までスタブ（シリアルに出すだけ）にする。起動時に赤外線を送らないこと。secrets.h が無いときは分かりやすいコンパイルエラーにする。",
-      "attempts": 0,
+      "attempts": 1,
       "human_feedback": "人の判断（2026-09-28、全フェーズ完了後の手直し）： 設計の直し（D-04・D-01 の web_bridge、D-06 の温湿度の1回目）に合わせて src を直す。(1) src/web_bridge.cpp/.h：onNotFound の代わりに WebServer::addHandler(RequestHandler*) で全要求を受ける方式にし、『request handler not found』のログが出ないようにする。振り分けの結果は今と同じ。(2) src/climate_dht20.cpp/.h：起動直後の1回目が DHT20_ERROR_LASTREAD(-15) にならないよう、D-06 で決めたとおりにする。ほかは変えない。",
-      "base_commit": "a6660f24520b692295ef71a56854386e6d6edbf3",
-      "started_at": "2026-09-27T08:35:36+09:00",
-      "done_at": "2026-09-27T08:39:02+09:00"
+      "base_commit": "c83ca0d1f4795f82c7c4bee877e7d9799109b7db",
+      "started_at": "2026-09-28T01:12:28+09:00",
+      "done_at": "2026-09-28T01:15:37+09:00"
     },
     {
       "id": "I-HW1",

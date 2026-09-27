@@ -13,6 +13,7 @@ class ClimateDht20 : public IClimateSensor {
   ClimateReading read() override;  // 周期の判断はしない（Hub::tick が 30 秒ごとに呼ぶ）
 
  private:
+  int readFirst();  // まだ1回も読めていないときだけ使う（1秒の間隔チェックなし）
   DHT20 dht_;
 };
 

@@ -9,7 +9,7 @@ WebBridge::WebBridge(WebServer& server, ApiRouter& router) : server_(server), ro
 
 void WebBridge::begin() {
   server_.on("/", HTTP_GET, [this]() { handleRoot(); });
-  server_.onNotFound([this]() { handleApi(); });
+  server_.addHandler(new ApiCatchAllHandler(*this));  // 所有権は WebServer に移る（1回だけ）
   server_.begin();
 }
 
