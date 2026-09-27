@@ -816,13 +816,14 @@
     {
       "id": "H-6",
       "type": "human",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-4",
         "D-07"
       ],
       "title": "人：フェーズ6 外出先から",
-      "how": "docs/ops/remote-access.md の手順でPCを設定し、Wi-Fiを切ったスマホから操作できることを確認。"
+      "how": "docs/ops/remote-access.md の手順でPCを設定し、Wi-Fiを切ったスマホから操作できることを確認。",
+      "resolved_note": "人がスマホ（モバイル回線）から Tailscale 経由で画面につながることを確認（2026-09-28）。最初につながらなかった原因は、advertise-routes を手順書の例の 192.168.1.200/32 のまま設定していたこと。192.168.10.127/32 に直して動いた。Windows の IP 転送の設定はしていない（たぶん、とのこと）。"
     }
   ]
 }
