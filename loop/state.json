@@ -793,13 +793,14 @@
     {
       "id": "H-4",
       "type": "human",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-2",
         "H-3"
       ],
       "title": "人：フェーズ4 画面とAPI（F1・F3・F5）",
-      "how": "docs/test/test-plan.md の TC-H（フェーズ4）に従う。"
+      "how": "docs/test/test-plan.md の TC-H（フェーズ4）に従う。",
+      "resolved_note": "人がフェーズ4（画面と API）を iPhone で確認し OK と報告（2026-09-28）。見た目の改善点：iPhone 17 の幅でモード（4つ）と風量（5つ）のボタンが1列に収まらず折り返す（動作には問題なし。別途 I-04 で直す）。"
     },
     {
       "id": "H-5",
