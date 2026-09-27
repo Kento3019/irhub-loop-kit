@@ -26,7 +26,7 @@ D-01 で決めた名前・シグネチャ（`WifiManager(ssid, pass)`・`begin(n
 - [N-IP] IP 固定の2方式：「6. IP アドレスの固定（2方式）」（方式A＝DHCP 予約、方式B＝ESP32 側で固定。`secrets.h` の `kUseStaticIp` で切り替える）
 - [N-RESP] 押してから送信まで1秒以内：「3. loop() の中身と周期」の「3.2 loop() を止める処理の上限」（エアコンの送信時間の見積もり）と「3.3 1秒の内訳」
 - [F5] 室温・湿度：「8. 温湿度センサー（src/climate_dht20）」。読み取り周期は `Hub::tick` の `kClimateIntervalMs`（D-01）で、ここでは初期化と1回の読み取りを決める
-- [HW-PINS] ピン割り当て：「2.1 setup() の手順」「2.4」と「8.」で `pins::kIrSend`（IO4）、`pins::kI2cSda`／`kI2cScl`（IO21／IO22）を使う。IO14 は初期化しない（D-01 のとおり）
+- [HW-PINS] ピン割り当て：「2.1 setup() の手順」「2.4」と「8.」で `pins::kIrSend`（IO23）、`pins::kI2cSda`／`kI2cScl`（IO21／IO22）を使う。IO14 は初期化しない（D-01 のとおり）
 - [C-TECH] 技術制約：「1. 使うライブラリ API の一覧」（Arduino core 2.x の WiFi・SNTP、IRremoteESP8266 の `IRac`、RobTillaart DHT20、Wire、`monitor_speed = 115200` に合わせた `Serial.begin(115200)`）
 
 ---
@@ -101,7 +101,7 @@ irhub::WifiManager     wifi(irhub::secrets::kWifiSsid, irhub::secrets::kWifiPass
 void setup() {
   Serial.begin(115200);                                    // (1)
   Serial.printf("[boot] irhub %s reset=%d\n", irhub::coreVersion(), (int)esp_reset_reason());
-  ir.begin();                                              // (2) IO4 を出力・LOW にする。送信しない（2.4）
+  ir.begin();                                              // (2) IO23 を出力・LOW にする。送信しない（2.4）
   sensor.begin();                                          // (3) Wire.begin(21, 22) → DHT20::begin()
   if (irhub::secrets::kUseStaticIp) {                      // (4) N-IP 方式B のときだけ
     wifi.setStaticIp(irhub::secrets::kStaticIp);
@@ -115,7 +115,7 @@ void setup() {
 | 順 | すること | 所要時間の目安 | 理由 |
 |---|---|---|---|
 | 1 | `Serial.begin(115200)`、版とリセット理由を出す | 数 ms | `monitor_speed = 115200`（C-TECH）。リセット理由は N-WIFI の再起動を実機で見分けるため（`ESP_RST_SW`＝`ESP.restart()`、`ESP_RST_POWERON`＝電源投入） |
-| 2 | `ir.begin()`（`pinMode`＋`digitalWrite(LOW)`。2.4） | 1 ms 未満 | IO4 を早く LOW に固定して、トランジスタのベースを浮かせたままにしない（N-BOOT）。送信メソッドは呼ばない |
+| 2 | `ir.begin()`（`pinMode`＋`digitalWrite(LOW)`。2.4） | 1 ms 未満 | IO23 をできるだけ早く出力・LOW に固定する。GPIO23 はリセット直後にプルダウンされないため、`ir.begin()` までは 2SC1815 のベースが浮きうる。変調信号は出ないので N-BOOT には反しない（外付けプルダウンを付けるかは人がハード側で判断する。01-architecture.md 9節の注記）。送信メソッドは呼ばない |
 | 3 | `sensor.begin()` | 最大約 100 ms | 8.2。失敗してもそのまま進む（`loop()` で 30 秒ごとに読み直す） |
 | 4 | IP 固定の設定を渡す（方式B のときだけ） | 0 | 6節。`WiFi.config()` の実行は `wifi.begin()` の中 |
 | 5 | `wifi.begin(millis())` | 数十 ms | 4.3 の順で設定して `WiFi.begin()`。**接続を待たない**（待つと接続できない間 `setup()` から出られず、D-01 6a の「約30秒で再起動」を `loop()` の `tick` で数えられない） |
@@ -179,7 +179,7 @@ namespace irhub {
 class IrSenderEsp32 : public IIrSender {
  public:
   // ピンにも赤外線にも触らない（グローバル変数として生成されるため。N-BOOT）。
-  // 送信ピンは pins::kIrSend（IO4）を .h/.cpp の中で使い、引数では受け取らない。
+  // 送信ピンは pins::kIrSend（IO23）を .h/.cpp の中で使い、引数では受け取らない。
   IrSenderEsp32();
   // setup() で1回だけ呼ぶ。送信ピンを出力・LOW にするだけで、何も送らない（N-BOOT）。
   void begin();

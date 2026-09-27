@@ -308,3 +308,5 @@ I-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・�
 - 2026-09-27T22:00:33+09:00 REOPEN I-06: 人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 コードのコメントに残る IO4 を IO23 に直す：src/main.cpp:37、src/ir_sender_esp32.h:13、src/ir_sender_esp32.cpp:60。コメントだけを直し、コード（ピン番号・処理）は変えない。pins.h は直し済みなので触らない。
 - 2026-09-27T22:00:40+09:00 START D-01 attempt=1
 - 2026-09-27T22:03:07+09:00 DONE D-01 attempts=1
+- 2026-09-27T22:03:07+09:00 START D-06 attempt=1
+- 2026-09-27T22:04:45+09:00 DONE D-06 attempts=1
