@@ -270,7 +270,7 @@
       "id": "T-01",
       "type": "test-design",
       "agent": "test-designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-02",
         "D-03",
@@ -311,10 +311,10 @@
         }
       ],
       "brief": "設計書から、native 単体テストのケース（TC-Nxx）と実機確認のケース（TC-Hxx）を作る。各ケースに要件ID、前提、操作、期待結果。実機ケースはフェーズ0〜6の完成判定を含め、H-* の人間ゲートで使うチェックリストとして読める形にする。",
-      "attempts": 0,
-      "base_commit": "caee6cedd1adb489adbba08e47e870a5bcea7ba5",
-      "started_at": "2026-09-27T22:04:45+09:00",
-      "done_at": "2026-09-27T22:06:05+09:00",
+      "attempts": 2,
+      "base_commit": "65761ea6d8fed2cf33ed92e628885c30d1333cf3",
+      "started_at": "2026-09-27T23:59:03+09:00",
+      "done_at": "2026-09-28T00:00:35+09:00",
       "human_feedback": "人の判断（2026-09-27、D2 確定）：F2 の初期値を確定。暖房 22℃・風量自動（仮の 20℃ から変更）、除湿 26℃・風量自動、自動は温度指定なし・風量自動、冷房 26℃・風量自動。D2 は closed で F2 は決定。 docs/test/test-plan.md で初期値としての暖房 20 を書いた所を 22 に直す（47行の括弧『暖房 20』、TC-N02 の『暖房 20』、TC-N08・N09・N25 の『initialSettings(Heat).tempC（20）』、TC-H16 の応答の期待『暖房 temp:20』）。F2 が決定になったので、47行などの『仮(F2)』の扱いも確定後の書き方に合わせる（期待値を initialSettings(m) から取る方針はそのままでよい）。スケジュールの例（基準の件 B・TC-N91/N92・N102・N208 などの tempC=20）は予定の例で初期値ではないので変えない。ケースID・ケース数は変えない。"
     },
     {
@@ -341,7 +341,7 @@
       "id": "T-02",
       "type": "test-code",
       "agent": "test-designer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "H-DESIGN"
       ],
@@ -369,11 +369,11 @@
         }
       ],
       "brief": "docs/test/test-plan.md の該当 TC-N を Unity で書く。実装はまだ無い。設計書 02 のインターフェースに従って書き、実装を推測して合わせにいかない。各テストの直前に // REQ: と // TC: を書く。",
-      "attempts": 1,
+      "attempts": 0,
       "base_commit": "b0aa6816cbba74a422ba92b77438e71719edbbf6",
       "started_at": "2026-09-26T22:56:21+09:00",
       "done_at": "2026-09-26T23:02:01+09:00",
-      "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：風向は作らず、ac_capabilities.h の風向の選択肢は Off だけになる（I-06 で確定値にする）。今のテスト TC-N06 test_apply_swingv_only（test/test_ac_state/test_main.cpp）は swingV=AcSwingV::Auto が受け付けられることを直書きで確かめており、確定値にすると落ちる。TC-N06 を TC-N07 と同じ形（cap::kSwingVDefault 以外の選択肢を探し、無ければ TEST_IGNORE）に直す。ほかのテストで F1-VALUES の仮値（風向・風量・モード・温度範囲）を直書きしているものがあれば、同じく cap:: から作る形に直す。設計書 D-01・D-02 とテスト計画 T-01（作り直し後）に従う。"
+      "human_feedback": "人の判断（2026-09-27、D2 確定）：暖房の初期値を 22℃ に確定（仮の 20℃ から変更）、F2 は決定。test/test_ac_state/test_main.cpp のコメントだけを直す：257行付近の『今は 20』を 22 に、4行目付近の『仮(F2)』を確定後の書き方に（D-02 の審査 loop/reviews/D-02-a1.md の申し送り）。判定（期待値は initialSettings() から取る）は変えない。D-02 511行の『冷房など直書きで1度確かめる』に合わせて TC-N02 に直書きの確認を足すかは、テスト計画 T-01 の TC-N02 の記述に従う。"
     },
     {
       "id": "I-01",

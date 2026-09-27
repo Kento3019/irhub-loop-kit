@@ -27,7 +27,7 @@ D1 の確定（この計画に関わるもの）：プロトコル HITACHI_AC296
 
 ### 2. 期待値の書き方（`cap::` から作る）
 
-T-02 の差し戻し（人の判断）と D-02・D-03・D-04 のテスト観点に従い、`ac_capabilities.h` の値（温度範囲・モード別の温度指定可否・風量と風向の選択肢）と仮値（件数上限、F2 の暖房・除湿・自動の初期値）を**テストに直書きしない**。`cap::` と `kScheduleMax`・`initialSettings(m)` から作る。こうすると I-06 で `ac_capabilities.h` を確定値にする前も後もテストが通る。
+T-02 の差し戻し（人の判断）と D-02・D-03・D-04 のテスト観点に従い、`ac_capabilities.h` の値（温度範囲・モード別の温度指定可否・風量と風向の選択肢）と仮値（件数上限）、F2 の暖房・除湿・自動の初期値（D2 で決定。表の1か所だけを正とするため）を**テストに直書きしない**（F2 の初期値の直書きは下の例外だけ）。`cap::` と `kScheduleMax`・`initialSettings(m)` から作る。こうすると I-06 で `ac_capabilities.h` を確定値にする前も後もテストが通る。
 
 テストの中で使う名前（各テストファイルの先頭で `cap::` から求める）：
 
@@ -44,7 +44,7 @@ T-02 の差し戻し（人の判断）と D-02・D-03・D-04 のテスト観点�
 - 温度の範囲の端は `cap::kTempMinC`／`cap::kTempMaxC` から作る（確定値 16／30。この計画では読みやすさのため `kTempMaxC+1`（31）のように確定値を括弧で添える）。
 - 範囲の端以外の温度（27、24、22、21、20、19、18、25）は `cap::tempInRange` の中である前提で直書きしてよい（D-02 テスト観点）。温度付きで冷房・暖房・除湿を使うケースは、先頭で `cap::tempSupported(そのモード)` が true であることを確かめ、false なら `TEST_IGNORE_MESSAGE`。
 - 風量 `High`・`Low` を直書きで使うケース（D-02 4節の遷移例の表を流すケースなど）は、先頭で `cap::fanSupported(High)`・`fanSupported(Low)` が true であることを確かめ、false なら IGNORE（仮値・確定値とも true）。
-- F2 の初期値：冷房 26℃・風量 自動（決定）は直書きする。暖房・除湿・自動（仮(F2)）の値は `initialSettings(m)`（`AcModel` 単体では `settingsFor(m)` でもよい）から取る。この計画では今の値（暖房 20、除湿 26、自動 25）を括弧で添える。
+- F2 の初期値（D2 で決定、2026-09-27）：冷房 26℃・風量 自動は直書きする。暖房・除湿・自動の値は、ふだんのケースでは `initialSettings(m)`（`AcModel` 単体では `settingsFor(m)` でもよい）から取る（表の1か所だけを正とする。D-02 テスト観点）。確定値そのもの（暖房 22・除湿 26・風量はすべて自動）が表に入っていることは TC-N02 で1度だけ直書きで確かめる。この計画では確定値（暖房 22、除湿 26、自動 25＝温度指定なしのため使われない値）を括弧で添える。
 - 文字列は `toString(F1)` などで作る（`F1` の文字列は I-06 前 `"low"`、後 `"min"`）。
 - エラー文言は設計書の表の文字列をそのまま比べる（`TEST_ASSERT_EQUAL_STRING`）。件数を含む文言は `snprintf(buf, sizeof buf, "too many schedules (max %d)", kScheduleMax)` で作る（今は `too many schedules (max 10)`）。
 - API の応答本文は ArduinoJson で読み直してキーごとに比べる。「キーが〜の N 個だけ」は `JsonObject` を走査してキーの集合を比べる。文字列全体の一致は、キーの順が設計で決まっているもの（`schedule_json` の `action`）だけで使う。
@@ -99,14 +99,14 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | ID | 要件 | 前提 | 操作 | 期待結果 |
 |---|---|---|---|---|
 | TC-N01 | [F2] [N-STATE] | 生成直後 | `m.state()` を読む | `power=false`、`mode=Cool`、`hasTemp==cap::tempSupported(Cool)`（true）、`tempC=26`、`fan=Auto`、`swingV=cap::kSwingVDefault`（Off）、`swingH=cap::kSwingHDefault`（Off） |
-| TC-N02 | [F2] | 生成直後 | `settingsFor` を4モード読む | 4モードとも `settingsFor(m)` の全項目が `initialSettings(m)` と一致（今は 自動 25・冷房 26・除湿 26・暖房 20、風量はすべて Auto、風向は Off）。冷房は `tempC=26`・`fan=Auto` を直書きでも確かめる |
+| TC-N02 | [F2] | 生成直後 | `settingsFor` を4モード読む | 4モードとも `settingsFor(m)` の全項目が `initialSettings(m)` と一致（D2 確定値：自動 25（使わない値）・冷房 26・除湿 26・暖房 22、風量はすべて Auto、風向は Off）。加えて初期値の確定値を1度だけ直書きで確かめる：`initialSettings(Cool)` が `tempC=26`・`fan=Auto`、`initialSettings(Heat)` が `tempC=22`・`fan=Auto`、`initialSettings(Dry)` が `tempC=26`・`fan=Auto`、`initialSettings(Auto).fan=Auto`（自動の `tempC` は使わない値なので確かめない） |
 | TC-N03 | [F1] | 生成直後 | `apply({tempC=27})` | 戻り値 `None`。`tempC=27`、`power=false`・`mode=Cool`・`fan=Auto`・風向は変わらない。`settingsFor(Cool).tempC=27` |
 | TC-N04 | [F1] | 生成直後 | `apply({power=true})` | `None`。`power=true`、`mode=Cool`・`tempC=26`・`fan=Auto`・風向は変わらない |
 | TC-N05 | [F1] | 生成直後 | `apply({fan=F1})` | `None`。`fan=F1`、他は変わらない。`settingsFor(Cool).fan=F1` |
 | TC-N06 | [F1] | 生成直後。`V1` を探す（確定値では無いので IGNORE） | `apply({swingV=V1})` | `None`。`swingV=V1`、他は変わらない |
 | TC-N07 | [F1] | 生成直後。`H1` を探す（仮値・確定値とも無いので IGNORE） | `apply({swingH=H1})` | `None`。`swingH=H1`、他は変わらない |
-| TC-N08 | [F1] [F2] | 生成直後。`fanSupported(High)`・`(Low)` が true | D-02 4節の遷移例の表の14行（#1〜#14）を上から順に `apply`（`{"temp":31}` の行は `kTempMaxC+1` で作る） | 各行の後で、結果（上から None×6、TempOutOfRange×2、None×5、EmptyPatch）、状態（power, mode, temp, fan）、4モードの `settingsFor` の変化が表どおり。暖房の復元値（#3）は `initialSettings(Heat).tempC`（20）。停止中の2行（#10 `{"temp":19}`→`false, Heat, 19, High`、#11 `{"mode":"cool","fan":"low"}`→`false, Cool, 27, Low`、`settingsFor(Cool).fan=Low`）も運転中と同じに更新される。最後の状態は `true, Cool, 27, Low`（「送信」欄は `AcModel` では確かめない。TC-N191） |
-| TC-N09 | [F2] | `apply({power=true})`、`apply({tempC=27})` | `apply({mode=Heat})` の後 `apply({mode=Cool})` | 暖房にしたとき `tempC=initialSettings(Heat).tempC`（20）、冷房に戻したとき `tempC=27` |
+| TC-N08 | [F1] [F2] | 生成直後。`fanSupported(High)`・`(Low)` が true | D-02 4節の遷移例の表の14行（#1〜#14）を上から順に `apply`（`{"temp":31}` の行は `kTempMaxC+1` で作る） | 各行の後で、結果（上から None×6、TempOutOfRange×2、None×5、EmptyPatch）、状態（power, mode, temp, fan）、4モードの `settingsFor` の変化が表どおり。暖房の復元値（#3）は `initialSettings(Heat).tempC`（22）。#4 `{"temp":22,"fan":"high"}` の温度も `initialSettings(Heat).tempC` から作る（同じ値を受け付けてそのまま。D-02 4節）。停止中の2行（#10 `{"temp":19}`→`false, Heat, 19, High`、#11 `{"mode":"cool","fan":"low"}`→`false, Cool, 27, Low`、`settingsFor(Cool).fan=Low`）も運転中と同じに更新される。最後の状態は `true, Cool, 27, Low`（「送信」欄は `AcModel` では確かめない。TC-N191） |
+| TC-N09 | [F2] | `apply({power=true})`、`apply({tempC=27})` | `apply({mode=Heat})` の後 `apply({mode=Cool})` | 暖房にしたとき `tempC=initialSettings(Heat).tempC`（22）、冷房に戻したとき `tempC=27` |
 | TC-N10 | [F2] | `apply({mode=Heat})` | `apply({fan=F1})` の後 `apply({mode=Cool})` | 冷房の `fan=Auto`（暖房の F1 が漏れない）。`settingsFor(Heat).fan=F1` |
 | TC-N11 | [F1] [F2] | 生成直後（冷房） | `apply({mode=Heat, tempC=18})` | `None`。`mode=Heat`、`tempC=18`。`settingsFor(Heat).tempC=18`、`settingsFor(Cool).tempC=26` のまま |
 | TC-N12 | [F1] | 生成直後 | `apply({tempC=cap::kTempMinC})`（16） | `None`、`tempC=16` |
@@ -122,7 +122,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N22 | [F1] | 生成直後 | `apply({tempC=cap::kTempMaxC+1, fan=Fx})` | `TempOutOfRange`（検証の順：温度が風量より先） |
 | TC-N23 | [F1] [F2] | `Mt` を探す（確定値 Auto。無ければ IGNORE） | (a) 冷房のまま `apply({mode=Mt, tempC=cap::kTempMinC})`。(b) `apply({mode=Mt})` の後に `apply({tempC=24})` | (a) `TempNotSupported`、モードは Cool のまま、状態不変。(b) 2回目が `TempNotSupported`、状態は Mt のまま不変（D-02 4節の A2・A5） |
 | TC-N24 | [F1] [F2] | TC-N23 と同じ `Mt`（無ければ IGNORE） | `apply({mode=Mt})` | `None`、`mode=Mt`、`hasTemp=false`、`tempC=settingsFor(Mt).tempC`（= `initialSettings(Mt).tempC`、今は 25） |
-| TC-N25 | [F1] | 生成直後（`power=false`） | `apply({tempC=24})` → `apply({mode=Heat})` → `apply({fan=F1})` | 3回とも `None`、`power=false` のまま。1回目の後 `tempC=24`・`settingsFor(Cool).tempC=24`。2回目の後 `mode=Heat`・`tempC=initialSettings(Heat).tempC`（20）。3回目の後 `fan=F1`・`settingsFor(Heat).fan=F1`・`settingsFor(Cool).fan=Auto`（停止中も運転中と同じ規則で状態とモード別の記憶が更新される。D-02 4節） |
+| TC-N25 | [F1] | 生成直後（`power=false`） | `apply({tempC=24})` → `apply({mode=Heat})` → `apply({fan=F1})` | 3回とも `None`、`power=false` のまま。1回目の後 `tempC=24`・`settingsFor(Cool).tempC=24`。2回目の後 `mode=Heat`・`tempC=initialSettings(Heat).tempC`（22）。3回目の後 `fan=F1`・`settingsFor(Heat).fan=F1`・`settingsFor(Cool).fan=Auto`（停止中も運転中と同じ規則で状態とモード別の記憶が更新される。D-02 4節） |
 | TC-N26 | [F1] | 生成直後（冷房） | `apply({mode=Cool})` | `None`、状態は TC-N01 と全項目同じ |
 | TC-N27 | [F1] | 生成直後 | `validate({tempC=27})` | `None`。`state().tempC=26` のまま（validate は状態を変えない） |
 | TC-N28 | [F1] | — | `auto` `cool` `dry` `heat` を `parseAcMode` → `toString` | 4つとも元の文字列に戻る。`parseAcMode("cool")==Cool`、`parseAcMode("auto")==Auto` |
@@ -310,7 +310,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 | TC-N190 | [F1] | 生成直後に `applyAc({power=true})`（`acCount=1`） | `applyAc({tempC=cap::kTempMaxC+1}, &err)`（31） | false、`err="temp out of range"`、`acCount=1` のまま、`acState()` が `power=true, mode=Cool, tempC=26, fan=Auto` |
 | TC-N191 | [F1] [F2] | 生成直後。`fanSupported(High)`・`(Low)` が true | D-02 4節の遷移例の表の14行を上から順に `applyAc`（`{"temp":31}` の行は `kTempMaxC+1`）。各行の前後で `acCount` の差を取る | 差が上から `1,1,1,1,1,1,0,0,1,0,0,1,1,0`（表の「送信」欄どおり）、最後の `acCount=9`。最後の `lastAc` が `power=true, mode=Cool, tempC=27, fan=Low` |
 | TC-N193 | [F1] | 生成直後（`power=false`、`acCount=0`） | `applyAc({power=true, tempC=cap::kTempMaxC+1}, &err)` | false、`err="temp out of range"`、`acCount=0` のまま、`acState()` が `power=false, mode=Cool, tempC=26, fan=Auto`（停止中でも power を含むパッチの検証失敗は送信 0 回・状態不変） |
-| TC-N194 | [F1] [F2] | 生成直後（`power=false`、冷房 26℃） | D-02 テスト観点の手順どおり、同じ `Hub` で `applyAc({tempC=27})` → `({mode=Heat})` → `({fan=F1})` | 3回とも true、毎回の後で `acCount=0`。3回の後の `acState()` が `power=false, mode=Heat, hasTemp=true, tempC=initialSettings(Heat).tempC`（20。冷房で変えた 27 は入らない）`, fan=F1, swingV=Off, swingH=Off` |
+| TC-N194 | [F1] [F2] | 生成直後（`power=false`、冷房 26℃） | D-02 テスト観点の手順どおり、同じ `Hub` で `applyAc({tempC=27})` → `({mode=Heat})` → `({fan=F1})` | 3回とも true、毎回の後で `acCount=0`。3回の後の `acState()` が `power=false, mode=Heat, hasTemp=true, tempC=initialSettings(Heat).tempC`（22。冷房で変えた 27 は入らない）`, fan=F1, swingV=Off, swingH=Off` |
 | TC-N195 | [F1] [F2] | TC-N194 の3回の後（同じ `Hub`） | `applyAc({power=true})` | true、`acCount=1`。`lastAc` が `power=true, mode=Heat, hasTemp=true, tempC=initialSettings(Heat).tempC, fan=F1, swingV=Off, swingH=Off` で、`acState()` と全7項目一致 |
 | TC-N196 | [F1] [F2] | TC-N195 の後（同じ `Hub`、運転中） | `applyAc({mode=Cool})` | true、`acCount=2`。`lastAc` が `power=true, mode=Cool, hasTemp=true, tempC=27, fan=Auto, swingV=Off, swingH=Off`（停止中に変えた冷房の 27 が残っている） |
 
@@ -343,7 +343,7 @@ D-03 4.1 の式（`m = epochMin + 540`、`wday = (m/1440 + 4) % 7`）で確か�
 |---|---|---|---|---|
 | TC-N152 | [F1] [API] | 生成直後に `POST /api/ac {"power":true}`（`acCount=1`） | `POST /api/ac {"temp":27}` | 200、本文が `{"ac":{…}}` で `ac.power=true`、`ac.temp=27`、`ac.mode="cool"`、`ac.fan="auto"`。`acCount=2`、`lastAc` が `acState()` と一致 |
 | TC-N153 | [F1] | 生成直後 | `{"power":true,"mode":"cool","temp":26,"fan":"auto"}` | 200、応答の `ac` が送った4項目と同じ値、キーが4つだけ |
-| TC-N154 | [F1] [F2] | `{"temp":27}` を送った後 | `{"mode":"heat"}` → `{"mode":"cool"}` | 1回目 `ac.mode="heat"`、`ac.temp=initialSettings(Heat).tempC`（20）。2回目 `ac.mode="cool"`、`ac.temp=27` |
+| TC-N154 | [F1] [F2] | `{"temp":27}` を送った後 | `{"mode":"heat"}` → `{"mode":"cool"}` | 1回目 `ac.mode="heat"`、`ac.temp=initialSettings(Heat).tempC`（22）。2回目 `ac.mode="cool"`、`ac.temp=27` |
 | TC-N155 | [F1] [API] | 生成直後 | `{"temp":26.5}`、`{"temp":"26"}`、`{"temp":null}`、`{"temp":true}` | 4つとも 400、`{"error":"temp: must be integer"}` |
 | TC-N156 | [F1] [API] | 生成直後 | `{"power":1}`、`{"mode":3}`、`{"mode":"Cool"}`、`{"mode":"fan"}` | `power: must be boolean`、`mode: must be string`、`mode: unknown mode`、`mode: unknown mode`（400） |
 | TC-N157 | [F1] [API] | 生成直後 | `{"fan":1}`、`{"fan":"turbo"}`、`{"fan":"quiet"}` | `fan: must be string`、`fan: unknown fan`、`fan: unknown fan`（400。静音の文字列は `min`） |
@@ -439,7 +439,7 @@ H-2 で確かめる送信の中身（PROTO）：受信した信号には押し�
 | TC-H77 | [F1] [F2] | 運転中（冷房 26℃） | 送る：`{"mode":"heat"}` → `{"mode":"dry"}` → `{"mode":"auto"}` → `{"mode":"cool"}` を 30 秒おきに | 4回とも応答 200、受信音が鳴る。エアコンの運転モードがそのたびに 暖房 → 除湿 → 自動 → 冷房 に変わる（本体の表示または吹き出しの冷温で確かめる）。自動の応答は `"temp":null`。自動のときエアコンが受け付けること＝温度欄 1（純正は 0）でも受け付けること。最後の冷房の応答は `"temp":26` |
 | TC-H78 | [F1] | 受信側を別に用意できる場合だけ行う（例：受信モジュールと `env:dump` を書き込んだ2台目の ESP32。用意できなければ「対象外（受信側なし）」と書いて ✓） | 受信側を ESP32 の LED の前 30cm に置き、TC-H11・H13 の `{"temp":27}`・H14 の `{"fan":"high"}`・H77 の `{"mode":"auto"}` を送り直す | 受信側に `Protocol : HITACHI_AC296` が出る。各送信の `state[11]` の値と、自動のときの温度欄の値（`Temp:` の表示）を記録する（見込み：`state[11]` はすべて 0x43、自動は `Temp: 1C` 相当）。合否に入れない |
 | TC-H15 | [F1] | ESP32 を実際の設置場所に置く。エアコンを止めておく | 送る：`{"power":true,"mode":"cool","temp":26}` → 10 秒後に `{"power":false}` を1組として、10 秒おきに3組（送信は計6回。どちらも power を含むので毎回送る） | 6回の送信のうち6回エアコンが反応する（運転開始・停止を3回ずつ繰り返し、最後は停止）。応答はすべて 200（設置場所から届く） |
-| TC-H16 | [F2] | 運転中（冷房） | 送る：`{"mode":"heat"}` → `{"mode":"dry"}` → `{"mode":"auto"}`（各 1 分ずつ運転） | 応答の `ac` が 暖房 `temp:20`、除湿 `temp:26`、自動 `temp:null`（いずれも初期値。F2 仮）。エアコンがそれぞれのモードで動く。除湿で設定温度（26℃）が効いたか（本体の表示・動き）と、自動の動きを記録して `/decide D2`（暖房・除湿・自動の初期値。除湿の温度が無視されるなら人が `kTempSupported[Dry]` を見直す） |
+| TC-H16 | [F2] | リセット直後（初期値の状態）に `{"power":true}` で運転中（冷房 26℃） | 送る：`{"mode":"heat"}` → `{"mode":"dry"}` → `{"mode":"auto"}`（各 1 分ずつ運転） | 合否：応答の `ac` が 暖房 `temp:22, fan:"auto"`、除湿 `temp:26, fan:"auto"`、自動 `temp:null, fan:"auto"`（いずれも D2 確定の初期値）で、エアコンがそれぞれのモードで動く（受信音と運転の様子）。記録のみ（合否に入れない）：除湿で設定温度が効いたか、自動でどう動いたか。除湿の温度が無視されると分かったら人が `kTempSupported[Dry]` を見直す。受信側を別に用意できる場合だけ（TC-H78 と同じ扱い）、送信信号のダンプ（暖房 22℃・風量自動か）を記録する。合否に入れない |
 | TC-H17 | [F1] [API] | 運転中。LED をカメラで映す | 送る：`{"temp":99}`、`{"temp":15}`、`{"fan":"max"}`、続けて `{"mode":"auto"}` の後に `{"temp":24}` | 順に 400 `{"error":"temp out of range"}`、400 `temp out of range`、400 `fan not supported`、（`{"mode":"auto"}` は 200）、400 `temp not supported in this mode`。400 の3回と最後の1回では LED が光らず、エアコンは変わらない |
 | TC-H68 | [F1] | エアコンと ESP32 がどちらも停止（例：TC-H12 の後）。スマホのカメラで LED を映す | 送る：`{"mode":"heat"}` → `{"temp":24}` → `{"fan":"high"}` を 5 秒おきに → 5 秒後に `{"power":true}` → 確かめたら `{"power":false}` | 最初の3回：応答 200、応答の `ac.power` が false、`ac` がそれぞれ `mode="heat"`、`temp=24`、`fan="high"` になる。LED が光らず、エアコンの受信音が鳴らず、エアコンは停止したまま（停止中に power を含まない変更は送らない。D-02 6節）。`{"power":true}`：LED が1回光り、エアコンが暖房・24℃・風量 強で運転を始める（停止中に変えた設定がまとめて届く）。最後の `{"power":false}` で停止する |
 | TC-H69 | [F1] [N-BOOT] | エアコンを `{"power":true,"mode":"cool","temp":26}` で運転させておく。LED をカメラで映す | ESP32 の EN ボタンでリセット → 30 秒待つ → `curl http://IP/api/status` → 送る：`{"temp":25}` → 10 秒待つ | `/api/status` の `ac.power` が false（N-STATE）。`{"temp":25}` の応答は 200・`ac.power=false`・`ac.temp=25`。LED が光らず、エアコンは冷房 26℃ で運転を続ける（再起動後に温度だけ変えても停止信号が出ない） |
