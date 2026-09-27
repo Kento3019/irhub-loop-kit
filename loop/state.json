@@ -270,7 +270,7 @@
       "id": "T-01",
       "type": "test-design",
       "agent": "test-designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-02",
         "D-03",
@@ -311,10 +311,10 @@
         }
       ],
       "brief": "設計書から、native 単体テストのケース（TC-Nxx）と実機確認のケース（TC-Hxx）を作る。各ケースに要件ID、前提、操作、期待結果。実機ケースはフェーズ0〜6の完成判定を含め、H-* の人間ゲートで使うチェックリストとして読める形にする。",
-      "attempts": 0,
-      "base_commit": "5812e70b050e615f5112c6d27b9052816d80262f",
-      "started_at": "2026-09-26T22:44:54+09:00",
-      "done_at": "2026-09-26T22:48:25+09:00",
+      "attempts": 1,
+      "base_commit": "caee6cedd1adb489adbba08e47e870a5bcea7ba5",
+      "started_at": "2026-09-27T22:04:45+09:00",
+      "done_at": "2026-09-27T22:06:05+09:00",
       "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 docs/test/test-plan.md 427行（フェーズ2の前提）の『IO4→1kΩ→2SC1815』を IO23 に直す。ほかに IO4 を前提にした記述があればそれも IO23 に。ピンの変更以外は変えない。D1 確定・F3 照明対象外・風向を作らない判断はそのまま。"
     },
     {
