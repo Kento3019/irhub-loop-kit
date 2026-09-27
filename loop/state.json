@@ -622,11 +622,11 @@
         }
       ],
       "brief": "web/index.html を1ファイルで作る。tools/embed_html.py は PlatformIO の extra_scripts（pre:）で web/index.html を src/generated/index_html.h に埋め込む。tools/mock_server.py は Python 標準ライブラリだけで API を真似て web/index.html を返す（PCのブラウザで画面を確かめるため）。",
-      "attempts": 3,
-      "human_feedback": "人の判断（D-02・D-04 審査の推奨より）：platformio.ini の env:esp32 に build_unflags = -std=gnu++11 と build_flags = -std=gnu++17 を足す。lib/core は C++17（std::optional 等）前提で、Arduino core 2.x の既定は gnu++11 の見込み。pio run -e esp32 で通ることを確かめる。\n人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。",
-      "base_commit": "447a660d4067ca29ab18143ffce770e8f64e3c56",
-      "started_at": "2026-09-27T00:08:48+09:00",
-      "done_at": "2026-09-27T00:12:14+09:00"
+      "attempts": 1,
+      "human_feedback": "人の判断（2026-09-28、H-4 の実機確認より）：iPhone 17（Safari、画面幅 約402 CSS px）で、エアコンのカードのモード（自動・冷房・除湿・暖房の4つ）と風量（自動・静音・弱・中・強の5つ）のボタンが1列に収まらず2行に折り返し、見た目が良くない。モードは4つ、風量は5つを、それぞれ1列に収める。幅 360 CSS px（小さめの Android）まで1列のまま崩れず、横スクロールが出ないこと。ボタンの押しやすさ（高さ 44px 以上）は保つ。例：ラベル（モード・風量）をボタンの上に置き、ボタンを等幅で並べる（grid の repeat(n, 1fr) など）、余白や文字・アイコンの大きさを詰める。直すのは web/index.html の CSS（必要なら見た目のための最小限の HTML）だけ。DOM の id・ボタンの動き・API の呼び方・文言は D-05 のまま変えない。スクリーンショット：/tmp/claude-1000/-home-desktop-sai-work-irhub-loop-kit/f595b0dd-9dab-4379-b9a6-8ebdd80e326b/images/11.png",
+      "base_commit": "646656fc3a15004dad4aaa1365238c6403eb0811",
+      "started_at": "2026-09-28T00:28:30+09:00",
+      "done_at": "2026-09-28T00:31:47+09:00"
     },
     {
       "id": "I-05",

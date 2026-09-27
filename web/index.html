@@ -41,9 +41,11 @@ h2 { font-size: 18px; margin: 0; }
 #ac-temp { font-size: 48px; min-width: 130px; text-align: center; font-variant-numeric: tabular-nums; }
 #ac-card.off #ac-temp { color: var(--muted); }
 #ac-temp-none { margin: 20px 0; text-align: center; color: var(--muted); }
-.choices { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: center; }
-.choices .lab { width: 3.2em; color: var(--muted); font-size: 14px; }
-.choices button { display: inline-flex; align-items: center; gap: 4px; }
+/* ラベルを上の行に置き、ボタンは数によらず等幅で1列に並べる（幅 360px まで折り返さない） */
+.choices { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.choices .lab { flex: 0 0 100%; color: var(--muted); font-size: 13px; }
+.choices button { flex: 1 1 0; min-width: 0; min-height: 50px; padding: 3px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.choices button svg { width: 20px; height: 20px; flex: none; }
 .choices button.m-cool[aria-pressed="true"] { background: var(--cool); border-color: var(--cool); }
 .choices button.m-heat[aria-pressed="true"] { background: var(--heat); border-color: var(--heat); }
 .msg { min-height: 1.2em; margin: 6px 0 0; font-size: 14px; }
