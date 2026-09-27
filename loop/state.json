@@ -43,10 +43,10 @@
       ],
       "brief": "lib/core（Arduino非依存・native でテストできる純C++17＋ArduinoJson）と src/（Arduino・WebServer・IRremoteESP8266・DHT20・WiFi に触る層）の境界を決める。赤外線送信・時計・センサーは lib/core 側ではインターフェースにし、native テストではフェイクに差し替える前提。モジュール一覧、各モジュールの責務、依存方向の図（mermaid可）、ファイル配置を書く。",
       "attempts": 1,
-      "base_commit": "83b13f6af00a1938189dd52798ee1130e7eed352",
-      "started_at": "2026-09-28T00:56:26+09:00",
-      "human_feedback": "人の判断（2026-09-28、全フェーズ完了後の手直し）： WebServer のログ対策：今の web_bridge は API を onNotFound で受けているため、要求のたびに WebServer.cpp が E レベルで『request handler not found』を出す（動作には影響なし）。onNotFound の代わりに、WebServer::addHandler(RequestHandler*) で全要求を受ける handler（GET / 以外のすべてを ApiRouter に渡す）を登録する方式にする。振り分けの結果（GET / は HTML、ほかは ApiRouter、無いパスは 404、GET 以外の / も 404）は今と同じにする。RequestHandler の形（canHandle・handle の引数）は ~/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src/detail/RequestHandler.h で実在を確かめてから書く。 docs/design/01-architecture.md の web_bridge の記述（327行のコメント、428行の表の行と使う WebServer API の一覧）を新しい方式に合わせる。ほかは変えない。",
-      "done_at": "2026-09-28T00:59:02+09:00"
+      "base_commit": "6b16c04983096b7f60ab2dbccf0ab4041fccd77e",
+      "started_at": "2026-09-28T01:36:52+09:00",
+      "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 docs/design/01-architecture.md の9節（ピン割り当てとその例）を要件 v0.5 に合わせる：LED の回路と『2個目は予備』、DHT20 SDA/SCL などの部品名、IO14 の扱い（受信モジュールは外した）。ピンの例は src/pins.h の記述と同じにする（pins.h のコメントは I-06 で同じ内容に直す）。ほかは変えない。",
+      "done_at": "2026-09-28T01:38:44+09:00"
     },
     {
       "id": "D-02",
@@ -201,7 +201,7 @@
       "id": "D-06",
       "type": "design",
       "agent": "designer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "D-01"
       ],
@@ -230,11 +230,11 @@
         }
       ],
       "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。",
-      "attempts": 2,
+      "attempts": 0,
       "base_commit": "9923320df7357efd13e2ae811004c6bfe22a89ca",
       "started_at": "2026-09-28T01:07:40+09:00",
       "done_at": "2026-09-28T01:09:58+09:00",
-      "human_feedback": "人の判断（2026-09-28、全フェーズ完了後の手直し）： 起動直後の温湿度の1回目の読み取りが必ず DHT20_ERROR_LASTREAD(-15) になる。DHT20 ライブラリ（.pio/libdeps/esp32/DHT20/DHT20.cpp）は _lastRead=0 で始まり、read() は millis()-_lastRead<1000 のとき LASTREAD を返すため、起動から1秒たつ前の1回目は失敗する（623行のテスト観点『起動から 1 秒以内に1回目の値が出る』と合わない）。1回目も値が取れるように、src 側（ClimateDht20）でどう扱うかを決めて書く（例：1回目の読み取りを起動から1秒たってから行う、など。setup() や loop() を長く止めない方法で）。623行のテスト観点も決めた内容に合わせる。センサーは実機では AHT25（DHT20 互換、同じライブラリで読める）を使っていることも、センサーの節に1行書いてよい。ほかは変えない。"
+      "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 docs/design/06-runtime.md で、部品としてのセンサーを DHT20 と書いている所を AHT25 に直す（ライブラリ・クラス・定数の名前はそのまま）。LED の回路を書いている所があれば要件 v0.5 に合わせる。ほかは変えない。"
     },
     {
       "id": "D-07",
@@ -270,7 +270,7 @@
       "id": "T-01",
       "type": "test-design",
       "agent": "test-designer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "D-02",
         "D-03",
@@ -311,11 +311,11 @@
         }
       ],
       "brief": "設計書から、native 単体テストのケース（TC-Nxx）と実機確認のケース（TC-Hxx）を作る。各ケースに要件ID、前提、操作、期待結果。実機ケースはフェーズ0〜6の完成判定を含め、H-* の人間ゲートで使うチェックリストとして読める形にする。",
-      "attempts": 2,
+      "attempts": 0,
       "base_commit": "65761ea6d8fed2cf33ed92e628885c30d1333cf3",
       "started_at": "2026-09-27T23:59:03+09:00",
       "done_at": "2026-09-28T00:00:35+09:00",
-      "human_feedback": "人の判断（2026-09-27、D2 確定）：F2 の初期値を確定。暖房 22℃・風量自動（仮の 20℃ から変更）、除湿 26℃・風量自動、自動は温度指定なし・風量自動、冷房 26℃・風量自動。D2 は closed で F2 は決定。 docs/test/test-plan.md で初期値としての暖房 20 を書いた所を 22 に直す（47行の括弧『暖房 20』、TC-N02 の『暖房 20』、TC-N08・N09・N25 の『initialSettings(Heat).tempC（20）』、TC-H16 の応答の期待『暖房 temp:20』）。F2 が決定になったので、47行などの『仮(F2)』の扱いも確定後の書き方に合わせる（期待値を initialSettings(m) から取る方針はそのままでよい）。スケジュールの例（基準の件 B・TC-N91/N92・N102・N208 などの tempC=20）は予定の例で初期値ではないので変えない。ケースID・ケース数は変えない。"
+      "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 docs/test/test-plan.md を要件 v0.5 に合わせる：427行のフェーズ2の前提『5V→100Ω→LED』を今の回路に、TC-H18 などの前提の『DHT20：SDA→IO21…』など部品としての DHT20 を AHT25 に（シリアルの行の [dht20] という表記はコードの出力なので変えない）。ケースID・ケース数・合否条件は変えない。"
     },
     {
       "id": "H-DESIGN",
@@ -729,7 +729,7 @@
       "id": "I-06",
       "type": "impl",
       "agent": "implementer",
-      "status": "done",
+      "status": "todo",
       "deps": [
         "H-1",
         "I-05"
@@ -762,8 +762,8 @@
         }
       ],
       "brief": "docs/hw/phase1-capture.md と D1 の決定に従い、エアコンは IRac で状態一式を送り、照明は記録した信号を送る。F1-VALUES を確定値に置き換え PENDING を外す（D1 が closed のときだけ）。シリアルからボタンを送れるデバッグ機能を付け、フェーズ2の実機確認に使えるようにする。",
-      "attempts": 1,
-      "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 コードのコメントに残る IO4 を IO23 に直す：src/main.cpp:37、src/ir_sender_esp32.h:13、src/ir_sender_esp32.cpp:60。コメントだけを直し、コード（ピン番号・処理）は変えない。pins.h は直し済みなので触らない。",
+      "attempts": 0,
+      "human_feedback": "人の判断（2026-09-28）：要件の原本を v0.5 に更新した（コミット 6b16c04。docs/requirements.md の部品表・ピン割り当て・注意）。配線v2：赤外線 LED は2個とも使い直列につなぐ（5V → 100Ω×2 を並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）。受信モジュールは外した（IO14 は未接続）。温湿度センサーは AHT25（DHT20 と同じメーカーの互換品、I2C 0x38、DHT20 用ライブラリで読める）。部品としてのセンサー名は AHT25 に直し、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、ClimateDht20、DHT20_ERROR_* など）は実際の名前なので変えない。 src/pins.h のコメントだけを直す：kIrSend の『赤外線 LED（エアコン向き。2個目は予備）』を今の回路（LED 2個直列）に、kI2cSda/kI2cScl の『DHT20 SDA/SCL』を AHT25 に、IO14 のコメントを『受信モジュールは外した（env:dump だけが使う）』の趣旨に。docs/design/01-architecture.md 9節の例（D-01 で直す）と同じ文にする。ピン番号とコードは変えない。",
       "base_commit": "1d4b0be1f88a6a2e6292eb17b26866f8e7015bbd",
       "started_at": "2026-09-27T22:06:05+09:00",
       "done_at": "2026-09-27T22:07:38+09:00"

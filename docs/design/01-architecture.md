@@ -517,19 +517,20 @@ struct FakeClimateSensor : irhub::IClimateSensor {
 };
 ```
 
-`src/pins.h`（HW-PINS、決定）：
+`src/pins.h`（HW-PINS、決定。要件 v0.5 の部品表・ピン割り当て・配線v2 に合わせる）。I-06 で implementer がこのとおり `src/pins.h` に写す（コメントもこのまま使う）。部品名は AHT25 とし、ライブラリ名・クラス名・定数名（DHT20 ライブラリ、`ClimateDht20`、`kDht20Addr`、`DHT20_ERROR_*`）は実際の名前なので変えない。
 
 ```cpp
-// src/pins.h
+// ピン番号の唯一の定義（HW-PINS）。根拠：docs/design/01-architecture.md 9節（要件 v0.5・配線v2）
 #pragma once
 #include <cstdint>
 
 namespace irhub::pins {
-constexpr uint8_t kIrSend = 23;       // IO23 → 1kΩ → 2SC1815 ベース。赤外線 LED（エアコン向き。2個目は予備）
-constexpr uint8_t kI2cSda = 21;       // DHT20 SDA（10kΩ で 3.3V へプルアップ）
-constexpr uint8_t kI2cScl = 22;       // DHT20 SCL（10kΩ で 3.3V へプルアップ）
-constexpr uint8_t kDht20Addr = 0x38;  // DHT20 の I2C アドレス（固定。ライブラリの中で使われる）
-// IO14（受信モジュール OUT）は本体ファームでは使わない。フェーズ1の env:dump（tools/phase1_dump/）だけが使う
+// IO23 → 1kΩ → 2SC1815 ベース。赤外線 LED 2個を直列で駆動（5V → 100Ω×2 並列で 50Ω → LED 2個直列 → 2SC1815。約 40mA）
+constexpr uint8_t kIrSend = 23;
+constexpr uint8_t kI2cSda = 21;       // AHT25 SDA（10kΩ で 3.3V へプルアップ）
+constexpr uint8_t kI2cScl = 22;       // AHT25 SCL（10kΩ で 3.3V へプルアップ）
+constexpr uint8_t kDht20Addr = 0x38;  // AHT25 の I2C アドレス（固定。DHT20 ライブラリの中で使われる。定数名はライブラリに合わせて DHT20 のまま）
+// IO14 は未接続。受信モジュールは配線v2で外した（フェーズ1の env:dump（tools/phase1_dump/）で受信に使ったピン）。本体ファームでは使わない
 }  // namespace irhub::pins
 ```
 
