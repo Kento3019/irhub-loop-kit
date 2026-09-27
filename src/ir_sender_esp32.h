@@ -1,6 +1,8 @@
 // IIrSender の ESP32 実装（HW-PINS、N-BOOT）。根拠：docs/design/06-runtime.md 2.4
-// I-05 はスタブ（シリアルに出すだけ）。I-06 は private と .cpp だけを変え、public の形は変えない。
+// I-06：AcState を stdAc::state_t に変換して IRac で送る。public の形は I-05 と同じ。
 #pragma once
+#include <IRac.h>
+
 #include "ports.h"  // IIrSender、AcState（D-01）
 
 namespace irhub {
@@ -14,6 +16,9 @@ class IrSenderEsp32 : public IIrSender {
   void begin();
   // D-01 の IIrSender。begin() の後にだけ呼ばれる（呼ぶのは Hub だけ）。
   bool sendAc(const AcState& state) override;
+
+ private:
+  IRac ac_;  // コンストラクタは値を覚えるだけでピンに触らない（N-BOOT）
 };
 
 }  // namespace irhub

@@ -728,7 +728,7 @@
       "id": "I-06",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-1",
         "I-05"
@@ -761,8 +761,11 @@
         }
       ],
       "brief": "docs/hw/phase1-capture.md と D1 の決定に従い、エアコンは IRac で状態一式を送り、照明は記録した信号を送る。F1-VALUES を確定値に置き換え PENDING を外す（D1 が closed のときだけ）。シリアルからボタンを送れるデバッグ機能を付け、フェーズ2の実機確認に使えるようにする。",
-      "attempts": 0,
-      "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。\nI-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・暖房・除湿・自動、自動は温度指定なし、温度 16〜30℃、風量 Auto・Quiet・Low・Medium・High、風向は Off のみ）にし PENDING を外す。送信は IRac で decode_type_t::HITACHI_AC296 を使う。"
+      "attempts": 1,
+      "human_feedback": "人の判断（D1・F3 対象外、2026-09-26）：照明（F3）は対象外なので作らない（brief に照明とあっても作らない。照明のボタン名・sendLight・/api/light・light_codes・画面の照明は無し）。エアコンは HITACHI_AC296 で、IRac で送れるのは運転・モード・温度・風量。風向は API・画面に出さず、状態モデルの swingV/swingH は Off 固定。設計書（D-01〜D-07）とテスト計画（T-01）はこの判断に合わせて直してあるので、それに従うこと。\nI-06 では ac_capabilities.h の F1-VALUES を確定値（モード 冷房・暖房・除湿・自動、自動は温度指定なし、温度 16〜30℃、風量 Auto・Quiet・Low・Medium・High、風向は Off のみ）にし PENDING を外す。送信は IRac で decode_type_t::HITACHI_AC296 を使う。",
+      "base_commit": "15b34e22b52eaafc70b020325c799a2496f6e4e5",
+      "started_at": "2026-09-27T09:50:46+09:00",
+      "done_at": "2026-09-27T09:55:11+09:00"
     },
     {
       "id": "H-2",

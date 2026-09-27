@@ -1,4 +1,4 @@
-// エアコンの列挙と、受信結果待ちの値（使える温度範囲・選択肢）
+// エアコンの列挙と、使える値（温度範囲・選択肢。D1 で確定）
 // 根拠：docs/design/02-ac-state.md 1節。core の他モジュールを include しない
 #pragma once
 #include <cstdint>
@@ -10,41 +10,34 @@ namespace irhub {
 enum class AcMode : uint8_t { Auto = 0, Cool = 1, Dry = 2, Heat = 3 };
 constexpr int kAcModeCount = 4;  // 配列の添字は static_cast<int>(AcMode)
 
-enum class AcFan : uint8_t { Auto, Min, Low, Medium, High, Max };
+enum class AcFan : uint8_t { Auto, Min, Low, Medium, High, Max };  // Min = 静音
 enum class AcSwingV : uint8_t { Off, Auto, Highest, High, Middle, Low, Lowest };
 enum class AcSwingH : uint8_t { Off, Auto, LeftMax, Left, Middle, Right, RightMax, Wide };
 
 namespace cap {
 
-// ---- 受信結果待ちの値（フェーズ1で確定する。値だけを直す） ---------------------------
-constexpr int kTempMinC = 16;   // PENDING(F1-VALUES) 要件の仮：16℃
-constexpr int kTempMaxC = 30;   // PENDING(F1-VALUES) 要件の仮：30℃
-constexpr int kTempStepC = 1;   // 要件 F1（決定）：1℃刻み。PENDING ではない
+// ---- 使える値（D1 で確定。F1-VALUES の値はこのファイルだけに置く） -------------------
+constexpr int kTempMinC = 16;   // 確定(D1)
+constexpr int kTempMaxC = 30;   // 確定(D1)。HITACHI_AC296 の温度欄は 5 ビットで 31 まで
+constexpr int kTempStepC = 1;   // 要件 F1（決定）：1℃刻み
 
-// モードごとに温度を指定できるか（添字は AcMode）。false のモードでは温度を持たず送らない（F2 除湿の但し書き）
+// モードごとに温度を指定できるか（添字は AcMode）。false のモードでは温度を受け付けず、見せない
 constexpr bool kTempSupported[kAcModeCount] = {
-    true,  // Auto  PENDING(F1-VALUES)
-    true,  // Cool  PENDING(F1-VALUES)
-    true,  // Dry   PENDING(F1-VALUES) 機種が除湿で温度指定できなければ false にする
-    true,  // Heat  PENDING(F1-VALUES)
+    false,  // Auto  確定(D1)：自動は温度指定なし（受信で温度欄 0）
+    true,   // Cool
+    true,   // Dry   受信で除湿の温度欄に 28℃ が載っている
+    true,   // Heat
 };
 
-// 風量の選択肢（画面に並べる順）
+// 風量の選択肢（画面に並べる順）。確定(D1)：自動・静音(Min)・弱・中・強
 constexpr AcFan kFanChoices[] = {
-    AcFan::Auto, AcFan::Low, AcFan::Medium, AcFan::High,  // PENDING(F1-VALUES)
+    AcFan::Auto, AcFan::Min, AcFan::Low, AcFan::Medium, AcFan::High,
 };
-// 風向 上下の選択肢
-constexpr AcSwingV kSwingVChoices[] = {
-    AcSwingV::Off, AcSwingV::Auto,  // PENDING(F1-VALUES)
-};
-// 風向 左右の選択肢
-constexpr AcSwingH kSwingHChoices[] = {
-    AcSwingH::Off,  // PENDING(F1-VALUES)
-};
-
-// 「機種の標準」の風向（F2 の表の風向欄。どのモードでも同じ）
-constexpr AcSwingV kSwingVDefault = AcSwingV::Off;  // PENDING(F1-VALUES)
-constexpr AcSwingH kSwingHDefault = AcSwingH::Off;  // PENDING(F1-VALUES)
+// 風向は作らない（D1）。状態の項目は残し、選択肢は Off だけ
+constexpr AcSwingV kSwingVChoices[] = {AcSwingV::Off};
+constexpr AcSwingH kSwingHChoices[] = {AcSwingH::Off};
+constexpr AcSwingV kSwingVDefault = AcSwingV::Off;
+constexpr AcSwingH kSwingHDefault = AcSwingH::Off;
 
 // ---- 以下は値ではなく道具（確定） -------------------------------------------------------
 constexpr int kFanChoiceCount = sizeof(kFanChoices) / sizeof(kFanChoices[0]);
