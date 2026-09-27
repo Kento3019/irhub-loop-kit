@@ -201,7 +201,7 @@
       "id": "D-06",
       "type": "design",
       "agent": "designer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "D-01"
       ],
@@ -230,10 +230,10 @@
         }
       ],
       "brief": "起動シーケンス、Wi-Fi 再接続（3回・約30秒・失敗で再起動）の状態遷移、NTP 取得と JST、DHT20 読み取り周期、loop() の中で何をどの周期で回すか、secrets.h の形（include/secrets.h.example）、IP固定の2方式。",
-      "attempts": 0,
-      "base_commit": "81f3b40b62b6f0dcda10956497056b5252b165dd",
-      "started_at": "2026-09-27T22:03:07+09:00",
-      "done_at": "2026-09-27T22:04:45+09:00",
+      "attempts": 2,
+      "base_commit": "9923320df7357efd13e2ae811004c6bfe22a89ca",
+      "started_at": "2026-09-28T01:07:40+09:00",
+      "done_at": "2026-09-28T01:09:58+09:00",
       "human_feedback": "人の判断（2026-09-28、全フェーズ完了後の手直し）： 起動直後の温湿度の1回目の読み取りが必ず DHT20_ERROR_LASTREAD(-15) になる。DHT20 ライブラリ（.pio/libdeps/esp32/DHT20/DHT20.cpp）は _lastRead=0 で始まり、read() は millis()-_lastRead<1000 のとき LASTREAD を返すため、起動から1秒たつ前の1回目は失敗する（623行のテスト観点『起動から 1 秒以内に1回目の値が出る』と合わない）。1回目も値が取れるように、src 側（ClimateDht20）でどう扱うかを決めて書く（例：1回目の読み取りを起動から1秒たってから行う、など。setup() や loop() を長く止めない方法で）。623行のテスト観点も決めた内容に合わせる。センサーは実機では AHT25（DHT20 互換、同じライブラリで読める）を使っていることも、センサーの節に1行書いてよい。ほかは変えない。"
     },
     {
