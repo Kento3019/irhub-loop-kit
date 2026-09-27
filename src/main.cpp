@@ -34,7 +34,7 @@ irhub::WifiManager wifi(irhub::secrets::kWifiSsid, irhub::secrets::kWifiPass);
 void setup() {
   Serial.begin(115200);  // C-TECH：monitor_speed = 115200
   Serial.printf("[boot] irhub %s reset=%d\n", irhub::coreVersion(), static_cast<int>(esp_reset_reason()));
-  ir.begin();      // IO4 を出力・LOW にする。送信しない（N-BOOT）
+  ir.begin();      // IO23 を出力・LOW にする。送信しない（N-BOOT）
   sensor.begin();  // Wire.begin(21, 22) → DHT20::begin()。失敗しても進む
   if (irhub::secrets::kUseStaticIp) {  // N-IP 方式B のときだけ
     wifi.setStaticIp(irhub::secrets::kStaticIp);

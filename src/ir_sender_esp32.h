@@ -10,7 +10,7 @@ namespace irhub {
 class IrSenderEsp32 : public IIrSender {
  public:
   // ピンにも赤外線にも触らない（グローバル変数として生成されるため。N-BOOT）。
-  // 送信ピンは pins::kIrSend（IO4）を .cpp の中で使い、引数では受け取らない。
+  // 送信ピンは pins::kIrSend（IO23）を .cpp の中で使い、引数では受け取らない。
   IrSenderEsp32();
   // setup() で1回だけ呼ぶ。送信ピンを出力・LOW にするだけで、何も送らない（N-BOOT）。
   void begin();

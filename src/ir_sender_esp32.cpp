@@ -57,7 +57,7 @@ stdAc::state_t toStdAc(const AcState& s) {
 IrSenderEsp32::IrSenderEsp32() : ac_(pins::kIrSend) {}
 
 void IrSenderEsp32::begin() {
-  // IO4 を出力・LOW に固定する。送信はしない（N-BOOT、HW-PINS）
+  // IO23 を出力・LOW に固定する。送信はしない（N-BOOT、HW-PINS）
   pinMode(pins::kIrSend, OUTPUT);
   digitalWrite(pins::kIrSend, LOW);
 }

@@ -728,7 +728,7 @@
       "id": "I-06",
       "type": "impl",
       "agent": "implementer",
-      "status": "todo",
+      "status": "done",
       "deps": [
         "H-1",
         "I-05"
@@ -761,11 +761,11 @@
         }
       ],
       "brief": "docs/hw/phase1-capture.md と D1 の決定に従い、エアコンは IRac で状態一式を送り、照明は記録した信号を送る。F1-VALUES を確定値に置き換え PENDING を外す（D1 が closed のときだけ）。シリアルからボタンを送れるデバッグ機能を付け、フェーズ2の実機確認に使えるようにする。",
-      "attempts": 0,
+      "attempts": 1,
       "human_feedback": "人の判断（2026-09-27）：赤外線の送信ピンを IO4 から IO23 に変えた（src/pins.h の kIrSend=23、I-06 で PASS・コミット 4d71e29）。 コードのコメントに残る IO4 を IO23 に直す：src/main.cpp:37、src/ir_sender_esp32.h:13、src/ir_sender_esp32.cpp:60。コメントだけを直し、コード（ピン番号・処理）は変えない。pins.h は直し済みなので触らない。",
-      "base_commit": "d1d65b88bc85d04e42eea46eff31ac1a8cdf8fce",
-      "started_at": "2026-09-27T21:28:45+09:00",
-      "done_at": "2026-09-27T21:30:36+09:00"
+      "base_commit": "1d4b0be1f88a6a2e6292eb17b26866f8e7015bbd",
+      "started_at": "2026-09-27T22:06:05+09:00",
+      "done_at": "2026-09-27T22:07:38+09:00"
     },
     {
       "id": "H-2",
